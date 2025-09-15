@@ -208,7 +208,7 @@
     function flash(){ S.flash.classList.add('on'); setTimeout(()=>S.flash.classList.remove('on'),180); }
 
     async function shoot(){ if(!S.preview.classList.contains('active')) return; if(!active()){ const asked=sessionStorage.getItem('pb_perm_asked')==='1'; if(!asked){ sessionStorage.setItem('pb_perm_asked','1'); const ok=await startCam(); if(!ok) return; } else if(sessionStorage.getItem('pb_perm_granted')==='1'||perm==='granted'){ const ok=await startCam(); if(!ok) return; } }
-      await waitReady(); S.count.style.display='block'; for(let i=5;i>=1;i--){ S.count.textContent=String(i); await sleep(1000);} S.count.style.display='none'; flash(); await shutter(); draw(); stopCam(); showScreen('captured'); }
+      await waitReady(); S.count.style.display='block'; for(let i=5;i>=1;i--){ S.count.textContent=String(i); await sleep(1000);} S.count.style.display='none'; flash(); await shutter(); draw(); /*stopCam()*/; showScreen('captured'); }
 
     async function retry(){ showScreen('preview'); if((sessionStorage.getItem('pb_perm_granted')==='1'||perm==='granted')&&!active()){ const ok=await startCam(); if(ok) await waitReady(); } }
 
@@ -222,7 +222,7 @@
       '- Erhalte realistische Gesichtszüge/Proportionen.',
       '- Übernehme Pose, Blickrichtung und ungefähre Beleuchtung.',
       '- Kein Text im Bild.',
-      '- Ausgabe: 1800×1200 (3:2, 4×6 Print, Querformat), 1 Bild.',
+      '- Ausgabe: 1800×1200 (3:2, 148mmx100mm Print, Querformat), 1 Bild.',
       '- Hintergrund sauber, stiltypisch.'
     ].join('\n'); }
 
@@ -282,7 +282,7 @@
     S.print.addEventListener('click',()=>window.print());
     S.share.addEventListener('click',async()=>{ if(!S.finalImg.src) return; try{ const link=await uploadShare(S.finalImg.src); S.qrLink.textContent=link; await makeQR(S.qrBox,link); S.qr.style.display='flex'; }catch(e){ S.qrLink.textContent='Fehler: '+e.message; S.qrBox.innerHTML=''; S.qr.style.display='flex'; } });
     S.restartBig.addEventListener('click',()=>S.restartFab.click());
-    S.restartFab.addEventListener('click',async()=>{ S.qr.style.display='none'; S.settings.style.display='none'; S.finalImg.src=''; S.resultBox.innerHTML=''; S.custom.value=''; chosen=styles[0]; showScreen('preview'); if(sessionStorage.getItem('pb_perm_granted')==='1'||perm==='granted'){ const ok=await startCam(); if(ok) await waitReady(); } });
+    S.restartFab.addEventListener('click',async()=>{stopCam(); S.qr.style.display='none'; S.settings.style.display='none'; S.finalImg.src=''; S.resultBox.innerHTML=''; S.custom.value=''; chosen=styles[0]; showScreen('preview'); if(sessionStorage.getItem('pb_perm_granted')==='1'||perm==='granted'){ const ok=await startCam(); if(ok) await waitReady(); } });
 
     S.settingsFab.addEventListener('click',openSettings); S.closeSettings.addEventListener('click',closeSettings);
     S.settings.addEventListener('click',(e)=>{ if(e.target===S.settings) closeSettings(); });

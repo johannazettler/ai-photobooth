@@ -82,21 +82,19 @@
     @media print{
       header,#restartFab,#settingsFab,.screen:not(#screenResult),.bigbar,.qr,.onboard{display:none!important}
 
-      /* Seite exakt Postkarte 148x100 mm im Querformat */
-      @page{ size:148mm 100mm landscape; margin:0 }
+      /* Seite exakt 148 x 100 mm, Querformat, ohne Ränder */
+    @page{ size:148mm 100mm landscape; margin:0 }
 
-        /* Das Bild selbst exakt auf Seitenformat setzen */
-      #screenResult{display:block;padding:0}
-      .result-img{width:148mm; height:100mm; margin:0}
-      .result-img img{
-        width:148mm; 
-        height:100mm; 
-        object-fit:cover;   /* kein Beschnitt, weiße Ränder möglich */
-        border:0; box-shadow:none; border-radius:0
-      }
+    html,body{ width:148mm; height:100mm; margin:0; padding:0; background:#fff;
+              -webkit-print-color-adjust:exact; print-color-adjust:exact }
 
-      
-      body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    #screenResult{ display:block; padding:0; margin:0; width:148mm; height:100mm }
+    .result-img{ width:148mm; height:100mm; margin:0 }
+    .result-img img{
+      width:148mm; height:100mm;
+      object-fit:cover;       /* füllt die Seite, beschneidet minimal */
+      border:0; box-shadow:none; border-radius:0; display:block
+    }
     }
   </style>
 </head>

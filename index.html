@@ -81,10 +81,21 @@
 
     @media print{
       header,#restartFab,#settingsFab,.screen:not(#screenResult),.bigbar,.qr,.onboard{display:none!important}
+
+      /* Seite exakt Postkarte 148x100 mm im Querformat */
+      @page{ size:148mm 100mm landscape; margin:0 }
+
+        /* Das Bild selbst exakt auf Seitenformat setzen */
       #screenResult{display:block;padding:0}
-      .result-img{width:100%;margin:0}
-      .result-img img{border:0;box-shadow:none;border-radius:0}
-      @page{size:6in 4in landscape;margin:0}
+      .result-img{width:148mm; height:100mm; margin:0}
+      .result-img img{
+        width:148mm; 
+        height:100mm; 
+        object-fit:contain;   /* kein Beschnitt, weiße Ränder möglich */
+        border:0; box-shadow:none; border-radius:0
+      }
+
+      
       body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     }
   </style>

@@ -288,7 +288,12 @@
     S.cont.addEventListener('click',()=>{ showScreen('style'); renderStyles(); });
     S.retry.addEventListener('click',retry);
     S.startGen.addEventListener('click',async()=>{ showScreen('gen'); const p=promptText(); S.prompt.value=p; S.resultBox.innerHTML='<div class="progress"><span class="hourglass">⏳</span> Die Bilderstellung läuft… das kann ca. 1 Minute dauern.</div>'; await toOpenAI(p); });
-    S.print.addEventListener('click',()=>window.print());
+    // S.print.addEventListener('click',()=>window.print());
+    S.print.addEventListener('click',()=>{
+      document.body.classList.add('borderless');
+      setTimeout(()=>window.print(),50);
+      setTimeout(()=>document.body.classList.remove('borderless'),1000);
+      });
     S.share.addEventListener('click',async()=>{ if(!S.finalImg.src) return; try{ const link=await uploadShare(S.finalImg.src); S.qrLink.textContent=link; await makeQR(S.qrBox,link); S.qr.style.display='flex'; }catch(e){ S.qrLink.textContent='Fehler: '+e.message; S.qrBox.innerHTML=''; S.qr.style.display='flex'; } });
     S.restartBig.addEventListener('click', retry);
     S.restartFab.addEventListener('click', retry);

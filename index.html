@@ -79,42 +79,6 @@
     #qrBox{width:300px;height:300px}
     #qrLink{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all;font-size:.9rem;color:#0f172a;text-align:center}
 
-    @media print{
-      /* UI ausblenden, aber NICHT #screenResult / .result-img */
-      header,
-      #restartFab,
-      #settingsFab,
-      #settings,
-      #onboard,
-      #qrModal,
-      .screen:not(#screenResult),
-      .bigbar { display:none !important; }
-
-      /* Seite exakt 148×100 mm, ohne Ränder */
-      @page{ size:148mm 100mm landscape; margin:0 }
-      html,body{
-        width:148mm; height:100mm;
-        margin:0 !important; padding:0 !important; background:#fff;
-        -webkit-print-color-adjust:exact; print-color-adjust:exact;
-      }
-
-      /* Eltern des Bildes sichtbar + formatfüllend */
-      #screenResult{ display:block !important; margin:0 !important; padding:0 !important; }
-      .result-img{
-        display:block !important;
-        width:148mm !important; height:100mm !important;
-        margin:0 !important; padding:0 !important; border:0 !important; box-shadow:none !important; border-radius:0 !important;
-      }
-
-      /* NUR das Bild drucken – formatfüllend */
-      #finalImg{
-        display:block !important;
-        width:148mm !important; height:100mm !important;
-        object-fit:cover !important; /* füllt vollständig (minimaler Beschnitt) */
-        margin:0 !important; border:0 !important; box-shadow:none !important; border-radius:0 !important;
-      }
-    }
-
   </style>
 </head>
 <body>
@@ -309,8 +273,49 @@
     S.startGen.addEventListener('click',async()=>{ showScreen('gen'); const p=promptText(); S.prompt.value=p; S.resultBox.innerHTML='<div class="progress"><span class="hourglass">⏳</span> Die Bilderstellung läuft… das kann ca. 1 Minute dauern.</div>'; await toOpenAI(p); });
     // S.print.addEventListener('click',()=>window.print());
     S.print.addEventListener('click', () => {
-      if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
-      window.open(S.finalImg.src, '_blank');   // neues Tab nur mit dem Bild
+      // 1) Quelle sicherstellen
+      let src = S.finalImg && S.finalImg.src;
+      if (!src) {
+        // Fallback: nimm das Canvas, falls vorhanden
+        if (S.canvas && S.canvas.width) {
+          src = S.canvas.toDataURL('image/jpeg', 0.95);
+        } else {
+          alert('Kein Bild vorhanden. Bitte erst ein Foto erstellen.');
+          return;
+        }
+      }
+
+      // 2) Neues Fenster öffnen und HTML mit <img> schreiben (stabiler als Data-URL direkt öffnen)
+      const w = window.open('', '_blank', 'noopener,noreferrer');
+      if (!w) {
+        alert('Popup wurde blockiert. Bitte Pop-ups für diese Seite erlauben.');
+        return;
+      }
+
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Foto</title>
+      <style>
+        html,body{margin:0;padding:0;background:#fff}
+        /* Im Tab: Bildschirmfüllende Vorschau (keine App-Styles mehr) */
+        img{display:block;width:100vw;height:100vh;object-fit:contain;border:0}
+        /* Drucken: harte mm-Maße; auf Wunsch cover für randlos */
+        @media print{
+          @page{size:148mm 100mm;margin:0}
+          img{width:148mm;height:100mm;object-fit:cover}
+        }
+      </style></head>
+      <body><img id="ph" src="${src}" alt="Foto"></body></html>`;
+
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+
+      // direkt hinter w.document.close():
+      const img = w.document.getElementById('ph');
+      if (img.decode) {
+        img.decode().then(() => w.print());
+      } else {
+        img.onload = () => w.print();
+      }
     });
     
     S.share.addEventListener('click',async()=>{ if(!S.finalImg.src) return; try{ const link=await uploadShare(S.finalImg.src); S.qrLink.textContent=link; await makeQR(S.qrBox,link); S.qr.style.display='flex'; }catch(e){ S.qrLink.textContent='Fehler: '+e.message; S.qrBox.innerHTML=''; S.qr.style.display='flex'; } });

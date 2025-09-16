@@ -799,12 +799,7 @@
           let h = logoImg.naturalHeight || logoImg.height;
           const s = Math.min(maxW / w, maxH / h, 1);
           w = Math.round(w * s); h = Math.round(h * s);
-
-          ctx.globalAlpha = 0.9;
-          ctx.fillStyle = 'rgba(255,255,255,0.85)';
-          ctx.fillRect(W - w - pad - 6, H - h - pad - 6, w + 12, h + 12);
-
-          ctx.globalAlpha = 1.0;
+          
           ctx.drawImage(logoImg, W - w - pad, H - h - pad, w, h);
         } else {
           // optionaler Text-Fallback

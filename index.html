@@ -80,22 +80,30 @@
     #qrLink{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all;font-size:.9rem;color:#0f172a;text-align:center}
 
     @media print{
-      header,#restartFab,#settingsFab,.screen:not(#screenResult),.bigbar,.qr,.onboard{display:none!important}
+      /* Alles ausblenden */
+      body *{ display:none !important }
 
-      /* Seite exakt 148 x 100 mm, Querformat, ohne Ränder */
-    @page{ size:148mm 100mm landscape; margin:0 }
+      /* Nur das Ergebnisbild sichtbar machen */
+      #finalImg{
+        display:block !important;
+        width:148mm !important;
+        height:100mm !important;
+        margin:0 !important;
+        border:0 !important;
+        box-shadow:none !important;
+        object-fit:cover !important;  /* füllt Seite, minimaler Beschnitt */
+      }
 
-    html,body{ width:148mm; height:100mm; margin:0; padding:0; background:#fff;
-              -webkit-print-color-adjust:exact; print-color-adjust:exact }
-
-    #screenResult{ display:block; padding:0; margin:0; width:148mm; height:100mm }
-    .result-img{ width:148mm; height:100mm; margin:0 }
-    .result-img img{
-      width:148mm; height:100mm;
-      object-fit:contain;
-      border:0; box-shadow:none; border-radius:0; display:block
+      @page{ size:148mm 100mm landscape; margin:0 }
+      html,body{
+        margin:0; padding:0;
+        background:#fff;
+        -webkit-print-color-adjust:exact;
+        print-color-adjust:exact;
+      }
     }
-    }
+
+    
   </style>
 </head>
 <body>
@@ -245,17 +253,6 @@
       catch(e){ try{ const fd2=new FormData(); fd2.append('model','gpt-image-1'); fd2.append('prompt',p); fd2.append('image',await pngBlob(),'input.png'); fd2.append('size','1024x1024'); const r2=await fetch('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:`Bearer ${key}`},body:fd2}); if(!r2.ok) throw new Error(await r2.text()); const j2=await r2.json(); const b642=j2 && j2.data && j2.data[0] && j2.data[0].b64_json; if(!b642) throw new Error('Keine Bilddaten'); let url2='data:image/png;base64,'+b642; url2=await compose(url2); S.resultBox.innerHTML=''; const img2=new Image(); img2.src=url2; S.resultBox.appendChild(img2); S.finalImg.src=url2; showScreen('result'); }
         catch(err){ console.error(err); S.resultBox.innerHTML='<div class="progress">❗ Fehler bei der KI‑Generierung. Details in der Konsole.</div>'; } }
     }
-    function openPhotoPrint(dataUrl){
-    const w = window.open('', '_blank', 'noopener,noreferrer');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><style>
-      @page{ size:148mm 100mm; margin:0 }
-      html,body{ margin:0; padding:0; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact }
-      .wrap{ width:148mm; height:100mm; display:flex; align-items:center; justify-content:center; }
-      img{ width:calc(148mm + 6mm); height:calc(100mm + 6mm); margin:-3mm 0 0 -3mm; object-fit:cover; display:block; border:0 }
-    </style></head><body><div class="wrap"><img src="${dataUrl}"></div></body></html>`;
-    w.document.open(); w.document.write(html); w.document.close();
-    setTimeout(()=>w.print(),150);
-    }
 
     // ===== Drive (no forced OAuth on reload) =====
     const loadClientId=async()=>{ if(drive.clientId) return drive.clientId; const meta=document.querySelector('meta[name="google-signin-client_id"]'); if(meta && meta.content){ drive.clientId=meta.content.trim(); return drive.clientId; } return null; };
@@ -299,11 +296,7 @@
     S.cont.addEventListener('click',()=>{ showScreen('style'); renderStyles(); });
     S.retry.addEventListener('click',retry);
     S.startGen.addEventListener('click',async()=>{ showScreen('gen'); const p=promptText(); S.prompt.value=p; S.resultBox.innerHTML='<div class="progress"><span class="hourglass">⏳</span> Die Bilderstellung läuft… das kann ca. 1 Minute dauern.</div>'; await toOpenAI(p); });
-    // S.print.addEventListener('click',()=>window.print());
-    S.print.addEventListener('click',()=>{
-    if(!S.finalImg.src){ alert('Kein Bild vorhanden.'); return; }
-    openPhotoPrint(S.finalImg.src);
-    });
+    S.print.addEventListener('click',()=>window.print());
     
     S.share.addEventListener('click',async()=>{ if(!S.finalImg.src) return; try{ const link=await uploadShare(S.finalImg.src); S.qrLink.textContent=link; await makeQR(S.qrBox,link); S.qr.style.display='flex'; }catch(e){ S.qrLink.textContent='Fehler: '+e.message; S.qrBox.innerHTML=''; S.qr.style.display='flex'; } });
     S.restartBig.addEventListener('click', retry);

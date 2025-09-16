@@ -799,7 +799,7 @@
           let h = logoImg.naturalHeight || logoImg.height;
           const s = Math.min(maxW / w, maxH / h, 1);
           w = Math.round(w * s); h = Math.round(h * s);
-          
+
           ctx.drawImage(logoImg, W - w - pad, H - h - pad, w, h);
         } else {
           // optionaler Text-Fallback
@@ -866,7 +866,7 @@
 
         const subjectHdr = '=?UTF-8?B?' + utf8b64(subject) + '?=';
         const bodyB64 = utf8b64(body);
-        const attachB64 = dataUrl.split(',')[1];             // dein Bild liegt als data:URL vor
+        const attachB64 = dataUrl.split(',')[1];             // Bild liegt als data:URL vor
         const attachWrap = wrap76(attachB64);
 
         // Wichtig: CRLF-Zeilenumbrüche
@@ -959,7 +959,15 @@
       S.cont.addEventListener('click', () => { showScreen('style'); renderStyles(); });
       S.retry.addEventListener('click', retry);
       S.startGen.addEventListener('click', async () => { showScreen('gen'); const p = promptText(); S.prompt.value = p; S.resultBox.innerHTML = '<div class="progress"><span class="hourglass">⏳</span> Die Bilderstellung läuft… das kann ca. 1 Minute dauern.</div>'; await toOpenAI(p); });
-      S.print.addEventListener('click', () => window.print());
+      // S.print.addEventListener('click', () => window.print());
+      S.print.addEventListener('click', () => {
+        if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
+        const w = window.open('', '_blank', 'noopener');
+        w.document.write(`<img src="${S.finalImg.src}" style="width:100%;height:auto;display:block;border:0">`);
+        w.document.close();
+        // optional: direkt drucken
+        w.onload = () => w.print();
+      });
 
       S.share.addEventListener('click', async () => { if (!S.finalImg.src) return; try { const link = await uploadShare(S.finalImg.src); S.qrLink.textContent = link; await makeQR(S.qrBox, link); S.qr.style.display = 'flex'; } catch (e) { S.qrLink.textContent = 'Fehler: ' + e.message; S.qrBox.innerHTML = ''; S.qr.style.display = 'flex'; } });
       S.restartBig.addEventListener('click', retry);

@@ -246,28 +246,6 @@
         catch(err){ console.error(err); S.resultBox.innerHTML='<div class="progress">❗ Fehler bei der KI‑Generierung. Details in der Konsole.</div>'; } }
     }
 
-    function openPhotoPrint(dataUrl,{bleed=true, orientation='landscape'}={}){
-      const size = orientation==='portrait' ? '100mm 148mm' : '148mm 100mm';
-      const w = window.open('', '_blank', 'noopener,noreferrer');
-      const html = `<!doctype html><html><head><meta charset="utf-8">
-      <style>
-        @page{ size:${size}; margin:0 }
-        html,body{ margin:0; padding:0; background:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact }
-        .wrap{ width:${orientation==='portrait'?'100mm':'148mm'}; height:${orientation==='portrait'?'148mm':'100mm'};
-              display:flex; align-items:center; justify-content:center; }
-        img{ width:${orientation==='portrait'?'148mm':'148mm'}; height:${orientation==='portrait'?'100mm':'100mm'};
-            object-fit:cover; display:block; border:0 }
-        body.borderless img{ width:calc(${orientation==='portrait'?'148mm':'148mm'} + 6mm);
-                            height:calc(${orientation==='portrait'?'100mm':'100mm'} + 6mm);
-                            margin:-3mm 0 0 -3mm }
-      </style></head>
-      <body class="${bleed?'borderless':''}"><div class="wrap">
-        <img src="${dataUrl}" alt="Foto">
-      </div></body></html>`;
-      w.document.open(); w.document.write(html); w.document.close();
-      setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} }, 150);
-    }
-
     // ===== Drive (no forced OAuth on reload) =====
     const loadClientId=async()=>{ if(drive.clientId) return drive.clientId; const meta=document.querySelector('meta[name="google-signin-client_id"]'); if(meta && meta.content){ drive.clientId=meta.content.trim(); return drive.clientId; } return null; };
     const initToken=()=>{ if(!(window.google&&google.accounts&&google.accounts.oauth2)&&drive.clientId) return null; if(!drive.clientId) return null; return google.accounts.oauth2.initTokenClient({client_id:drive.clientId,scope:'https://www.googleapis.com/auth/drive.file',callback:(resp)=>{ if(resp&&resp.access_token){ drive.token=resp.access_token; setDriveStatus(); } }}); };
@@ -311,9 +289,10 @@
     S.retry.addEventListener('click',retry);
     S.startGen.addEventListener('click',async()=>{ showScreen('gen'); const p=promptText(); S.prompt.value=p; S.resultBox.innerHTML='<div class="progress"><span class="hourglass">⏳</span> Die Bilderstellung läuft… das kann ca. 1 Minute dauern.</div>'; await toOpenAI(p); });
     // S.print.addEventListener('click',()=>window.print());
-    S.print.addEventListener('click', ()=>{
-    if(!S.finalImg.src){ alert('Kein Bild vorhanden.'); return; }
-    openPhotoPrint(S.finalImg.src,{bleed:true,orientation:'landscape'});
+    S.print.addEventListener('click',()=>{
+      document.body.classList.add('borderless');
+      setTimeout(()=>window.print(),50);
+      setTimeout(()=>document.body.classList.remove('borderless'),1000);
     });
     S.share.addEventListener('click',async()=>{ if(!S.finalImg.src) return; try{ const link=await uploadShare(S.finalImg.src); S.qrLink.textContent=link; await makeQR(S.qrBox,link); S.qr.style.display='flex'; }catch(e){ S.qrLink.textContent='Fehler: '+e.message; S.qrBox.innerHTML=''; S.qr.style.display='flex'; } });
     S.restartBig.addEventListener('click', retry);

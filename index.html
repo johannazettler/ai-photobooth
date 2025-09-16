@@ -579,8 +579,9 @@
   <section id="screenResult" class="screen">
     <div class="result-img"><img id="finalImg" alt="Generiertes Bild (3:2 mit Wasserzeichen)"></div>
     <div class="bigbar"><button id="printBtn" class="primary">🖨️ Bild drucken</button><button id="shareBtn"
-        class="secondary" style="outline:3px solid rgba(16,185,129,.35)">🌿 Bild teilen (Drive + QR)</button><button id="gmailBtn" class="secondary">✉️ Per Gmail senden</button><button
-        id="restartBigBtn" class="secondary">🔄 Neu starten</button></div>
+        class="secondary" style="outline:3px solid rgba(16,185,129,.35)">🌿 Bild teilen (Drive + QR)</button><button
+        id="gmailBtn" class="secondary">✉️ Per Gmail senden</button><button id="restartBigBtn" class="secondary">🔄 Neu
+        starten</button></div>
   </section>
 
   <button id="restartFab" class="corner-btn" title="Neu starten">🔄</button>
@@ -607,6 +608,16 @@
       <div class="row">
         <div class="help">Version</div>
         <div id="versionText" class="help"></div>
+      </div>
+      <div class="row">
+        <label for="logoFile">Logo (PNG/JPG/SVG)</label>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <input id="logoFile" type="file" accept="image/png,image/svg+xml,image/jpeg" class="input" />
+          <img id="logoPreview" alt="Logo-Vorschau" style="height:36px;max-width:160px;object-fit:contain;
+                      border:1px solid var(--border);border-radius:6px;
+                      padding:3px;background:#fff" />
+          <button id="logoClear" class="secondary" type="button">Entfernen</button>
+        </div>
       </div>
     </div>
   </div>
@@ -663,17 +674,22 @@
         cameraSel: el('cameraSel'), apiKey: el('apiKey'), version: el('versionText'),
         onboard: el('onboard'), obCamera: el('obCamera'), obGrantCam: el('obGrantCam'), obApi: el('obApiKey'), obDriveConn: el('obDriveConnect'), obDone: el('obDone'), obMissing: el('obMissing'), obDriveStatus: el('obDriveStatus'),
         driveConn: el('driveConnect'), driveStatus: el('driveStatus'),
-        qr: el('qrModal'), qrBox: el('qrBox'), qrLink: el('qrLink'), qrClose: el('qrClose')
+        qr: el('qrModal'), qrBox: el('qrBox'), qrLink: el('qrLink'), qrClose: el('qrClose'),
+        logoFile: document.getElementById('logoFile'),
+        logoPreview: document.getElementById('logoPreview'),
+        logoClear: document.getElementById('logoClear'),
       };
 
       // State
+      let logoData = localStorage.getItem('pb_logo_data') || null; // Data-URL (PNG/JPG/SVG)
+      let logoImg = null; // gecachtes Image-Objekt für schnelles Zeichnen
       let stream = null, devices = [], perm = 'prompt';
       const styles = ['Puppet Style', 'Anime', 'Studio Ghibli', 'Simpsons', 'Ninja Turtles', '90s Aesthetic', 'LEGO Style'];
       let chosen = styles[0];
 
       // Drive state
       const drive = { clientId: '', token: null, tokenClient: null, authorized: (localStorage.getItem('drive_authorized') === '1') };
-      const gmail = { token:null, tokenClient:null, authorized:(localStorage.getItem('gmail_authorized')==='1') };
+      const gmail = { token: null, tokenClient: null, authorized: (localStorage.getItem('gmail_authorized') === '1') };
       let driveFolder = JSON.parse(localStorage.getItem('drive_folder') || 'null');
 
       // Utils
@@ -694,8 +710,61 @@
 
       function draw() {
         const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1)); const W = 1800, H = 1200; S.canvas.width = Math.floor(W * dpr); S.canvas.height = Math.floor(H * dpr); const ctx = S.canvas.getContext('2d'); ctx.setTransform(-1, 0, 0, 1, S.canvas.width, 0); const vw = S.video.videoWidth || 1280, vh = S.video.videoHeight || 720; const desired = S.canvas.width / S.canvas.height, va = vw / vh; let sx, sy, sw, sh; if (va > desired) { sh = vh; sw = Math.floor(sh * desired); sx = Math.floor((vw - sw) / 2); sy = 0; } else { sw = vw; sh = Math.floor(sw / desired); sx = 0; sy = Math.floor((vh - sh) / 2); } ctx.imageSmoothingQuality = 'high'; ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, S.canvas.width, S.canvas.height);
-        // Wasserzeichen unten rechts
-        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = .90; ctx.fillStyle = '#0f172a'; ctx.font = 'bold 54px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto'; const m = ctx.measureText('AI Hub'); ctx.fillText('AI Hub', S.canvas.width - m.width - 24, S.canvas.height - 24); ctx.restore();
+        // --- Logo unten rechts ---
+        (function drawLogoOnCanvas(ctx, canvasW, canvasH) {
+          const pad = Math.round(canvasW * 0.02);   // ~2% Padding
+          const maxW = Math.round(canvasW * 0.18);  // max 18% Breite
+          const maxH = Math.round(canvasH * 0.18);  // max 18% Höhe
+
+          // Reset Transform, weil du ggf. gespiegelt hast
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+          if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
+            // Größe skaliert bestimmen
+            let w = logoImg.naturalWidth || logoImg.width;
+            let h = logoImg.naturalHeight || logoImg.height;
+            const s = Math.min(maxW / w, maxH / h, 1);
+            w = Math.round(w * s); h = Math.round(h * s);
+
+            // optionaler, leichter weißer Untergrund für Kontrast
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.fillRect(canvasW - w - pad - 6, canvasH - h - pad - 6, w + 12, h + 12);
+
+            // Logo zeichnen
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(logoImg, canvasW - w - pad, canvasH - h - pad, w, h);
+          } else {
+            // Fallback: Text (falls kein Logo gewählt)
+            ctx.globalAlpha = .9;
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 54px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
+            const text = 'AI Hub';
+            const m = ctx.measureText(text);
+            ctx.fillText(text, canvasW - m.width - pad, canvasH - pad);
+          }
+          ctx.restore();
+        })(ctx, S.canvas.width, S.canvas.height);
+
+      }
+      // Logo 
+      function openSettings() {
+        S.settings.style.display = 'flex';
+        S.version.textContent = V;
+        S.cameraSel.value = sessionStorage.getItem('camera_id') || '';
+        S.apiKey.value = sessionStorage.getItem('openai_api_key') || '';
+        setDriveStatus();
+        // Logo-Preview aktualisieren
+        if (logoData) {
+          S.logoPreview.src = logoData;
+          if (!logoImg || logoImg.src !== logoData) {
+            logoImg = new Image();
+            logoImg.src = logoData;
+          }
+        } else {
+          S.logoPreview.removeAttribute('src');
+        }
       }
 
       async function shutter() { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const ac = new AC(); const out = ac.createGain(); out.gain.value = .8; out.connect(ac.destination); const osc = ac.createOscillator(); osc.type = 'square'; const og = ac.createGain(); og.gain.setValueAtTime(.0001, ac.currentTime); og.gain.exponentialRampToValueAtTime(.6, ac.currentTime + .006); og.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + .09); osc.frequency.setValueAtTime(190, ac.currentTime); osc.connect(og).connect(out); const nb = ac.createBuffer(1, ac.sampleRate * .04, ac.sampleRate); const data = nb.getChannelData(0); for (let i = 0; i < data.length; i++) { data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2); } const noise = ac.createBufferSource(); noise.buffer = nb; const ng = ac.createGain(); ng.gain.value = .45; noise.connect(ng).connect(out); osc.start(); noise.start(); osc.stop(ac.currentTime + .1); noise.stop(ac.currentTime + .05); }
@@ -726,7 +795,31 @@
 
       async function pngBlob() { return new Promise(res => S.canvas.toBlob(b => res(b), 'image/png')); }
       async function compose(src) {
-        const img = await new Promise((r, j) => { const im = new Image(); im.onload = () => r(im); im.onerror = j; im.src = src; }); const W = 1800, H = 1200; const out = document.createElement('canvas'); out.width = W; out.height = H; const ctx = out.getContext('2d'); const a = img.width / img.height, desired = W / H; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); let dw = W, dh = Math.round(W / a); if (dh > H) { dh = H; dw = Math.round(H * a); } const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2); ctx.drawImage(img, dx, dy, dw, dh); // WM unten rechts
+        const img = await new Promise((r, j) => { const im = new Image(); im.onload = () => r(im); im.onerror = j; im.src = src; }); const W = 1800, H = 1200; const out = document.createElement('canvas'); out.width = W; out.height = H; const ctx = out.getContext('2d'); const a = img.width / img.height, desired = W / H; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); let dw = W, dh = Math.round(W / a); if (dh > H) { dh = H; dw = Math.round(H * a); } const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2); ctx.drawImage(img, dx, dy, dw, dh);
+        // --- Logo unten rechts (auf das 1800x1200-Result) ---
+        if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
+          const pad = Math.round(W * 0.02);
+          const maxW = Math.round(W * 0.18);
+          const maxH = Math.round(H * 0.18);
+
+          let w = logoImg.naturalWidth || logoImg.width;
+          let h = logoImg.naturalHeight || logoImg.height;
+          const s = Math.min(maxW / w, maxH / h, 1);
+          w = Math.round(w * s); h = Math.round(h * s);
+
+          ctx.globalAlpha = 0.9;
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillRect(W - w - pad - 6, H - h - pad - 6, w + 12, h + 12);
+
+          ctx.globalAlpha = 1.0;
+          ctx.drawImage(logoImg, W - w - pad, H - h - pad, w, h);
+        } else {
+          // optionaler Text-Fallback
+          ctx.save(); ctx.globalAlpha = .25; ctx.fillStyle = '#0f172a';
+          ctx.font = 'bold 32px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
+          const m = ctx.measureText('AI Hub'); ctx.fillText('AI Hub', W - m.width - 24, H - 24); ctx.restore();
+        }
+        // WM unten rechts
         ctx.save(); ctx.globalAlpha = .25; ctx.fillStyle = '#0f172a'; ctx.font = 'bold 32px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto'; const m = ctx.measureText('AI Hub'); ctx.fillText('AI Hub', W - m.width - 24, H - 24); ctx.restore();
         return out.toDataURL('image/jpeg', .95);
       }
@@ -744,83 +837,83 @@
       const loadClientId = async () => { if (drive.clientId) return drive.clientId; const meta = document.querySelector('meta[name="google-signin-client_id"]'); if (meta && meta.content) { drive.clientId = meta.content.trim(); return drive.clientId; } return null; };
       const initToken = () => { if (!(window.google && google.accounts && google.accounts.oauth2) && drive.clientId) return null; if (!drive.clientId) return null; return google.accounts.oauth2.initTokenClient({ client_id: drive.clientId, scope: 'https://www.googleapis.com/auth/drive.file', callback: (resp) => { if (resp && resp.access_token) { drive.token = resp.access_token; setDriveStatus(); } } }); };
 
-      async function ensureGmailToken({interactive=true}={}) {
-  // Client-ID aus <meta name="google-signin-client_id"> holen – wird in loadClientId() gesetzt
-  const clientId = await loadClientId(); // vorhanden in deiner Datei
-  if (!clientId || !(window.google && google.accounts && google.accounts.oauth2)) return null;
+      async function ensureGmailToken({ interactive = true } = {}) {
+        // Client-ID aus <meta name="google-signin-client_id"> holen – wird in loadClientId() gesetzt
+        const clientId = await loadClientId(); // vorhanden in deiner Datei
+        if (!clientId || !(window.google && google.accounts && google.accounts.oauth2)) return null;
 
-  if (!gmail.tokenClient) {
-    gmail.tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/gmail.send',
-      callback: (resp) => {
-        if (resp && resp.access_token) {
-          gmail.token = resp.access_token;
-          localStorage.setItem('gmail_authorized','1');
-          gmail.authorized = true;
+        if (!gmail.tokenClient) {
+          gmail.tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: 'https://www.googleapis.com/auth/gmail.send',
+            callback: (resp) => {
+              if (resp && resp.access_token) {
+                gmail.token = resp.access_token;
+                localStorage.setItem('gmail_authorized', '1');
+                gmail.authorized = true;
+              }
+            }
+          });
         }
+        if (gmail.token) return gmail.token;
+
+        try {
+          gmail.tokenClient.requestAccessToken({ prompt: gmail.authorized ? '' : (interactive ? 'consent' : '') });
+        } catch (e) { /* ignore */ }
+
+        // kurz auf den Token warten (sleep() ist in deiner Datei vorhanden)
+        for (let i = 0; i < 50; i++) { if (gmail.token) return gmail.token; await sleep(100); }
+        return gmail.token;
       }
-    });
-  }
-  if (gmail.token) return gmail.token;
 
-  try {
-    gmail.tokenClient.requestAccessToken({ prompt: gmail.authorized ? '' : (interactive ? 'consent' : '') });
-  } catch (e) { /* ignore */ }
+      // Hilfsfunktionen für Encoding (Gmail verlangt base64url von der gesamten MIME-Nachricht)
+      const utf8b64 = (s) => btoa(unescape(encodeURIComponent(s)));
+      const b64url = (b64) => b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      const wrap76 = (b64) => b64.replace(/.{1,76}/g, '$&\r\n');
 
-  // kurz auf den Token warten (sleep() ist in deiner Datei vorhanden)
-  for (let i=0;i<50;i++){ if (gmail.token) return gmail.token; await sleep(100); }
-  return gmail.token;
-}
+      // E-Mail mit JPEG-Anhang via Gmail API senden
+      async function sendWithGmail({ to, subject, body, dataUrl, fileName }) {
+        const token = await ensureGmailToken({ interactive: true });
+        if (!token) throw new Error('Gmail nicht verbunden (OAuth)');
 
-// Hilfsfunktionen für Encoding (Gmail verlangt base64url von der gesamten MIME-Nachricht)
-const utf8b64 = (s) => btoa(unescape(encodeURIComponent(s)));
-const b64url   = (b64) => b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-const wrap76   = (b64) => b64.replace(/.{1,76}/g, '$&\r\n');
+        const boundary = 'mime_' + Math.random().toString(36).slice(2);
 
-// E-Mail mit JPEG-Anhang via Gmail API senden
-async function sendWithGmail({to, subject, body, dataUrl, fileName}) {
-  const token = await ensureGmailToken({interactive:true});
-  if (!token) throw new Error('Gmail nicht verbunden (OAuth)');
+        const subjectHdr = '=?UTF-8?B?' + utf8b64(subject) + '?=';
+        const bodyB64 = utf8b64(body);
+        const attachB64 = dataUrl.split(',')[1];             // dein Bild liegt als data:URL vor
+        const attachWrap = wrap76(attachB64);
 
-  const boundary = 'mime_' + Math.random().toString(36).slice(2);
+        // Wichtig: CRLF-Zeilenumbrüche
+        const mime =
+          'To: ' + to + '\r\n' +
+          'Subject: ' + subjectHdr + '\r\n' +
+          'MIME-Version: 1.0\r\n' +
+          'Content-Type: multipart/mixed; boundary="' + boundary + '"\r\n' +
+          '\r\n' +
+          '--' + boundary + '\r\n' +
+          'Content-Type: text/plain; charset="UTF-8"\r\n' +
+          'Content-Transfer-Encoding: base64\r\n' +
+          '\r\n' +
+          bodyB64 + '\r\n' +
+          '\r\n' +
+          '--' + boundary + '\r\n' +
+          'Content-Type: image/jpeg; name="' + fileName + '"\r\n' +
+          'Content-Transfer-Encoding: base64\r\n' +
+          'Content-Disposition: attachment; filename="' + fileName + '"\r\n' +
+          '\r\n' +
+          attachWrap + '\r\n' +
+          '--' + boundary + '--\r\n';
 
-  const subjectHdr = '=?UTF-8?B?' + utf8b64(subject) + '?=';
-  const bodyB64    = utf8b64(body);
-  const attachB64  = dataUrl.split(',')[1];             // dein Bild liegt als data:URL vor
-  const attachWrap = wrap76(attachB64);
+        const raw = b64url(utf8b64(mime));
 
-  // Wichtig: CRLF-Zeilenumbrüche
-  const mime =
-    'To: ' + to + '\r\n' +
-    'Subject: ' + subjectHdr + '\r\n' +
-    'MIME-Version: 1.0\r\n' +
-    'Content-Type: multipart/mixed; boundary="' + boundary + '"\r\n' +
-    '\r\n' +
-    '--' + boundary + '\r\n' +
-    'Content-Type: text/plain; charset="UTF-8"\r\n' +
-    'Content-Transfer-Encoding: base64\r\n' +
-    '\r\n' +
-    bodyB64 + '\r\n' +
-    '\r\n' +
-    '--' + boundary + '\r\n' +
-    'Content-Type: image/jpeg; name="' + fileName + '"\r\n' +
-    'Content-Transfer-Encoding: base64\r\n' +
-    'Content-Disposition: attachment; filename="' + fileName + '"\r\n' +
-    '\r\n' +
-    attachWrap + '\r\n' +
-    '--' + boundary + '--\r\n';
-
-  const raw = b64url(utf8b64(mime));
-
-  const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw })
-  });
-  if (!resp.ok) throw new Error(await resp.text());
-  return await resp.json();
-}
+        const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raw })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        return await resp.json();
+      }
 
 
       // Silent token (keine UI), nur wenn früher authorisiert
@@ -886,9 +979,9 @@ async function sendWithGmail({to, subject, body, dataUrl, fileName}) {
         const to = (prompt('E-Mail-Adresse (Empfänger):') || '').trim();
         if (!to) return;
 
-        const subject  = 'Dein AI HUB Photobooth Bild';
-        const body     = 'Hallo,\n\nanbei dein Bild aus dem Photobooth.\n\nViele Grüße!';
-        const fileName = 'AIHUB-Photo-' + new Date().toISOString().replace(/[:.]/g,'-') + '.jpg';
+        const subject = 'Dein AI HUB Photobooth Bild';
+        const body = 'Hallo,\n\nanbei dein Bild aus dem Photobooth.\n\nViele Grüße!';
+        const fileName = 'AIHUB-Photo-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jpg';
 
         try {
           await sendWithGmail({ to, subject, body, dataUrl: S.finalImg.src, fileName });

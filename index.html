@@ -80,30 +80,41 @@
     #qrLink{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all;font-size:.9rem;color:#0f172a;text-align:center}
 
     @media print{
-      /* Alles ausblenden */
-      body *{ display:none !important }
+      /* UI ausblenden, aber NICHT #screenResult / .result-img */
+      header,
+      #restartFab,
+      #settingsFab,
+      #settings,
+      #onboard,
+      #qrModal,
+      .screen:not(#screenResult),
+      .bigbar { display:none !important; }
 
-      /* Nur das Ergebnisbild sichtbar machen */
-      #finalImg{
-        display:block !important;
-        width:148mm !important;
-        height:100mm !important;
-        margin:0 !important;
-        border:0 !important;
-        box-shadow:none !important;
-        object-fit:cover !important;  /* füllt Seite, minimaler Beschnitt */
-      }
-
+      /* Seite exakt 148×100 mm, ohne Ränder */
       @page{ size:148mm 100mm landscape; margin:0 }
       html,body{
-        margin:0; padding:0;
-        background:#fff;
-        -webkit-print-color-adjust:exact;
-        print-color-adjust:exact;
+        width:148mm; height:100mm;
+        margin:0 !important; padding:0 !important; background:#fff;
+        -webkit-print-color-adjust:exact; print-color-adjust:exact;
+      }
+
+      /* Eltern des Bildes sichtbar + formatfüllend */
+      #screenResult{ display:block !important; margin:0 !important; padding:0 !important; }
+      .result-img{
+        display:block !important;
+        width:148mm !important; height:100mm !important;
+        margin:0 !important; padding:0 !important; border:0 !important; box-shadow:none !important; border-radius:0 !important;
+      }
+
+      /* NUR das Bild drucken – formatfüllend */
+      #finalImg{
+        display:block !important;
+        width:148mm !important; height:100mm !important;
+        object-fit:cover !important; /* füllt vollständig (minimaler Beschnitt) */
+        margin:0 !important; border:0 !important; box-shadow:none !important; border-radius:0 !important;
       }
     }
 
-    
   </style>
 </head>
 <body>

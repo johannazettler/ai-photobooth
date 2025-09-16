@@ -307,7 +307,27 @@
     S.cont.addEventListener('click',()=>{ showScreen('style'); renderStyles(); });
     S.retry.addEventListener('click',retry);
     S.startGen.addEventListener('click',async()=>{ showScreen('gen'); const p=promptText(); S.prompt.value=p; S.resultBox.innerHTML='<div class="progress"><span class="hourglass">⏳</span> Die Bilderstellung läuft… das kann ca. 1 Minute dauern.</div>'; await toOpenAI(p); });
-    S.print.addEventListener('click',()=>window.print());
+    // S.print.addEventListener('click',()=>window.print());
+    S.print.addEventListener('click', () => {
+      // 1) Bildquelle sicherstellen
+      if (!S.finalImg.src) {
+        if (S.canvas && S.canvas.width && S.canvas.height) {
+          // Fallback: das aktuelle Canvas als JPEG übernehmen
+          S.finalImg.src = S.canvas.toDataURL('image/jpeg', 0.95);
+        } else {
+          alert('Kein Bild vorhanden. Bitte zuerst ein Foto aufnehmen/erzeugen.');
+          return;
+        }
+      }
+
+      // 2) Result-Screen sichtbar machen (fürs Print-Stylesheet)
+      showScreen('result');
+
+      // 3) Optional: randlos mit Bleed (wenn du vollflächig drucken willst)
+      document.body.classList.add('borderless');   // nur wenn dein Print-CSS das nutzt
+      setTimeout(() => window.print(), 50);
+      setTimeout(() => document.body.classList.remove('borderless'), 1000);
+    });
     
     S.share.addEventListener('click',async()=>{ if(!S.finalImg.src) return; try{ const link=await uploadShare(S.finalImg.src); S.qrLink.textContent=link; await makeQR(S.qrBox,link); S.qr.style.display='flex'; }catch(e){ S.qrLink.textContent='Fehler: '+e.message; S.qrBox.innerHTML=''; S.qr.style.display='flex'; } });
     S.restartBig.addEventListener('click', retry);

@@ -743,11 +743,6 @@
             const s = Math.min(maxW / w, maxH / h, 1);
             w = Math.round(w * s); h = Math.round(h * s);
 
-            // optionaler, leichter weißer Untergrund für Kontrast
-            ctx.globalAlpha = 0.9;
-            ctx.fillStyle = 'rgba(255,255,255,0.85)';
-            ctx.fillRect(canvasW - w - pad - 6, canvasH - h - pad - 6, w + 12, h + 12);
-
             // Logo zeichnen
             ctx.globalAlpha = 1.0;
             ctx.drawImage(logoImg, canvasW - w - pad, canvasH - h - pad, w, h);

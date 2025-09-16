@@ -680,6 +680,22 @@
         logoClear: document.getElementById('logoClear'),
       };
 
+      // Logo Setzen, Vorscheu zeigen, Cache Bild anlegen
+      function setLogo(dataUrl) {
+        logoData = dataUrl || null;
+        if (logoData) {
+          S.logoPreview.src = logoData;
+          localStorage.setItem('pb_logo_data', logoData);
+          // gecachtes Image-Objekt, damit draw()/compose() es sofort haben
+          logoImg = new Image();
+          logoImg.src = logoData;
+        } else {
+          S.logoPreview.removeAttribute('src');
+          localStorage.removeItem('pb_logo_data');
+          logoImg = null;
+        }
+      }
+
       // State
       let logoData = localStorage.getItem('pb_logo_data') || null; // Data-URL (PNG/JPG/SVG)
       let logoImg = null; // gecachtes Image-Objekt für schnelles Zeichnen
@@ -748,25 +764,7 @@
         })(ctx, S.canvas.width, S.canvas.height);
 
       }
-      // Logo 
-      function openSettings() {
-        S.settings.style.display = 'flex';
-        S.version.textContent = V;
-        S.cameraSel.value = sessionStorage.getItem('camera_id') || '';
-        S.apiKey.value = sessionStorage.getItem('openai_api_key') || '';
-        setDriveStatus();
-        // Logo-Preview aktualisieren
-        if (logoData) {
-          S.logoPreview.src = logoData;
-          if (!logoImg || logoImg.src !== logoData) {
-            logoImg = new Image();
-            logoImg.src = logoData;
-          }
-        } else {
-          S.logoPreview.removeAttribute('src');
-        }
-      }
-
+      
       async function shutter() { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const ac = new AC(); const out = ac.createGain(); out.gain.value = .8; out.connect(ac.destination); const osc = ac.createOscillator(); osc.type = 'square'; const og = ac.createGain(); og.gain.setValueAtTime(.0001, ac.currentTime); og.gain.exponentialRampToValueAtTime(.6, ac.currentTime + .006); og.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + .09); osc.frequency.setValueAtTime(190, ac.currentTime); osc.connect(og).connect(out); const nb = ac.createBuffer(1, ac.sampleRate * .04, ac.sampleRate); const data = nb.getChannelData(0); for (let i = 0; i < data.length; i++) { data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2); } const noise = ac.createBufferSource(); noise.buffer = nb; const ng = ac.createGain(); ng.gain.value = .45; noise.connect(ng).connect(out); osc.start(); noise.start(); osc.stop(ac.currentTime + .1); noise.stop(ac.currentTime + .05); }
       function flash() { S.flash.classList.add('on'); setTimeout(() => S.flash.classList.remove('on'), 180); }
 
@@ -819,8 +817,6 @@
           ctx.font = 'bold 32px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
           const m = ctx.measureText('AI Hub'); ctx.fillText('AI Hub', W - m.width - 24, H - 24); ctx.restore();
         }
-        // WM unten rechts
-        ctx.save(); ctx.globalAlpha = .25; ctx.fillStyle = '#0f172a'; ctx.font = 'bold 32px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto'; const m = ctx.measureText('AI Hub'); ctx.fillText('AI Hub', W - m.width - 24, H - 24); ctx.restore();
         return out.toDataURL('image/jpeg', .95);
       }
 
@@ -946,7 +942,23 @@
       async function updPerm() { try { if (navigator.permissions && navigator.permissions.query) { const st = await navigator.permissions.query({ name: 'camera' }); perm = st.state; st.onchange = () => { perm = st.state; }; return; } } catch { } perm = sessionStorage.getItem('pb_perm_granted') ? 'granted' : 'prompt'; }
 
       // Settings & Onboarding
-      function openSettings() { S.settings.style.display = 'flex'; S.version.textContent = V; S.cameraSel.value = sessionStorage.getItem('camera_id') || ''; S.apiKey.value = sessionStorage.getItem('openai_api_key') || ''; setDriveStatus(); }
+      function openSettings() {
+        S.settings.style.display = 'flex';
+        S.version.textContent = V;
+        S.cameraSel.value = sessionStorage.getItem('camera_id') || '';
+        S.apiKey.value = sessionStorage.getItem('openai_api_key') || '';
+        setDriveStatus();
+        // Logo-Preview aktualisieren
+        if (logoData) {
+          S.logoPreview.src = logoData;
+          if (!logoImg || logoImg.src !== logoData) {
+            logoImg = new Image();
+            logoImg.src = logoData;
+          }
+        } else {
+          S.logoPreview.removeAttribute('src');
+        }
+      }
       function closeSettings() { S.settings.style.display = 'none'; }
 
       function missingList() { const out = []; if (!sessionStorage.getItem('camera_id')) out.push('• Kamera wählen'); if (!(sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted')) out.push('• Kamerazugriff erlauben'); if (!sessionStorage.getItem('openai_api_key')) out.push('• OpenAI API Key setzen'); if (!driveFolder) out.push('• Drive verbinden (Ordner wird automatisch angelegt)'); return out; }
@@ -969,9 +981,23 @@
 
       S.cameraSel.addEventListener('change', () => { sessionStorage.setItem('camera_id', S.cameraSel.value || ''); });
 
+      // Logo Events
+      // Datei auswählen -> lesen -> setzen
+      S.logoFile?.addEventListener('change', () => {
+        const f = S.logoFile.files && S.logoFile.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = () => setLogo(r.result);
+        r.readAsDataURL(f);
+      });
+      // Logo entfernen
+      S.logoClear?.addEventListener('click', () => setLogo(null));
+
+
       // Drive buttons
       S.driveConn.addEventListener('click', async () => { await ensureToken({ interactive: true }); setDriveStatus(); });
       S.qrClose.addEventListener('click', () => { S.qr.style.display = 'none'; }); S.qr.addEventListener('click', (e) => { if (e.target === S.qr) S.qr.style.display = 'none'; });
+
       // Gmail button
       S.gmail.addEventListener('click', async () => {
         if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
@@ -1002,7 +1028,8 @@
       async function initPerm() { try { if (navigator.permissions && navigator.permissions.query) { const st = await navigator.permissions.query({ name: 'camera' }); perm = st.state; st.onchange = () => perm = st.state; } } catch { } }
 
       // Init
-      (async function init() { document.title = 'AI HUB Photobooth'; S.version.textContent = V; await initPerm(); await updPerm(); await listCams(); showScreen('preview'); if ((sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted') && !active()) { const ok = await startCam(); if (ok) await waitReady(); } setDriveStatus(); openOnboardingIfNeeded(); if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) { navigator.mediaDevices.addEventListener('devicechange', listCams); } })();
+      (async function init() { document.title = 'AI HUB Photobooth'; S.version.textContent = V; await initPerm(); await updPerm(); await listCams(); showScreen('preview'); if ((sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted') && !active()) { const ok = await startCam(); if (ok) await waitReady(); } setDriveStatus(); openOnboardingIfNeeded(); if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) { navigator.mediaDevices.addEventListener('devicechange', listCams); if (logoData) {logoImg = new Image(); logoImg.src = logoData;
+        }} })();
     })();
   </script>
 </body>

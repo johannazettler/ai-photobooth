@@ -80,45 +80,21 @@
     #qrLink{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all;font-size:.9rem;color:#0f172a;text-align:center}
 
     @media print{
-      /* Verstecke alle interaktiven Elemente und andere Screens */
-      header, #restartFab, #settingsFab, .screen:not(#screenResult), .bigbar, .qr, .onboard {
-        display: none !important;
-      }
+      header,#restartFab,#settingsFab,.screen:not(#screenResult),.bigbar,.qr,.onboard{display:none!important}
 
-      /* Setze Body-Stile für den Druck zurück */
-      body {
-        display: block; /* Überschreibe das Grid-Layout */
-        padding: 0;
-        margin: 0;
-        background: #fff;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
+      /* Seite exakt 148 x 100 mm, Querformat, ohne Ränder */
+    @page{ size:148mm 100mm landscape; margin:0 }
 
-      /* Sorge dafür, dass der Ergebnis-Screen und der Bild-Container die Seite füllen */
-      #screenResult, .result-img {
-        display: block;
-        width: 100%;
-        height: 100%;
-        padding: 0;
-        margin: 0;
-      }
+    html,body{ width:148mm; height:100mm; margin:0; padding:0; background:#fff;
+              -webkit-print-color-adjust:exact; print-color-adjust:exact }
 
-      /* Stile das Bild selbst für den Druck */
-      .result-img img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain; /* Stellt sicher, dass das ganze Bild passt, ohne es zu beschneiden */
-        border: 0;
-        box-shadow: none;
-        border-radius: 0;
-      }
-      
-      /* Definiere die physische Seitengröße */
-      @page {
-        size: 148mm 100mm landscape;
-        margin: 0;
-      }
+    #screenResult{ display:block; padding:0; margin:0; width:148mm; height:100mm }
+    .result-img{ width:148mm; height:100mm; margin:0 }
+    .result-img img{
+      width:148mm; height:100mm;
+      object-fit:cover;       /* füllt die Seite, beschneidet minimal */
+      border:0; box-shadow:none; border-radius:0; display:block
+    }
     }
   </style>
 </head>

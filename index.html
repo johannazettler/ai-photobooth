@@ -745,7 +745,7 @@ w = Math.round(w * s); h = Math.round(h * s);
 
 // Logo zeichnen
 ctx.globalAlpha = 1.0;
-ctx.drawImage(logoImg, canvasW - w - pad, canvasH - h - pad, w, h);
+ctx.drawImage(logoImg, canvasW - w - pad, pad, w, h);
 } else {
 // Fallback: Text (falls kein Logo gewählt)
 ctx.globalAlpha = .9;
@@ -800,7 +800,7 @@ let h = logoImg.naturalHeight || logoImg.height;
 const s = Math.min(maxW / w, maxH / h, 1);
 w = Math.round(w * s); h = Math.round(h * s);
 
-ctx.drawImage(logoImg, W - w - pad, H - h - pad, w, h);
+ctx.drawImage(logoImg, W - w - pad, pad, w, h);
 } else {
 // optionaler Text-Fallback
 ctx.save(); ctx.globalAlpha = .25; ctx.fillStyle = '#0f172a';

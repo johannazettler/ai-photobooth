@@ -725,39 +725,54 @@ async function ensurePreview() { if (active()) return; const ok = sessionStorage
 async function waitReady(timeout = 8000) { if (S.video.readyState >= 2 && S.video.videoWidth && S.video.videoHeight) return true; return await new Promise(res => { const on = () => { if (S.video.videoWidth && S.video.videoHeight) { off(); res(true); } }; const off = () => { S.video.removeEventListener('loadedmetadata', on); S.video.removeEventListener('canplay', on); }; S.video.addEventListener('loadedmetadata', on); S.video.addEventListener('canplay', on); setTimeout(() => { off(); res(false); }, timeout); }); }
 
 function draw() {
-const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1)); const W = 1800, H = 1200; S.canvas.width = Math.floor(W * dpr); S.canvas.height = Math.floor(H * dpr); const ctx = S.canvas.getContext('2d'); ctx.setTransform(-1, 0, 0, 1, S.canvas.width, 0); const vw = S.video.videoWidth || 1280, vh = S.video.videoHeight || 720; const desired = S.canvas.width / S.canvas.height, va = vw / vh; let sx, sy, sw, sh; if (va > desired) { sh = vh; sw = Math.floor(sh * desired); sx = Math.floor((vw - sw) / 2); sy = 0; } else { sw = vw; sh = Math.floor(sw / desired); sx = 0; sy = Math.floor((vh - sh) / 2); } ctx.imageSmoothingQuality = 'high'; ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, S.canvas.width, S.canvas.height);
-// --- Logo unten rechts ---
-(function drawLogoOnCanvas(ctx, canvasW, canvasH) {
-const pad = Math.round(canvasW * 0.02);   // ~2% Padding
-const maxW = Math.round(canvasW * 0.18);  // max 18% Breite
-const maxH = Math.round(canvasH * 0.18);  // max 18% Höhe
+  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+  const W = 1800, H = 1200;
+  S.canvas.width = Math.floor(W * dpr);
+  S.canvas.height = Math.floor(H * dpr);
+  const ctx = S.canvas.getContext('2d');
 
-// Reset Transform, weil du ggf. gespiegelt hast
-ctx.save();
-ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(-1, 0, 0, 1, S.canvas.width, 0); 
+  const vw = S.video.videoWidth || 1280, vh = S.video.videoHeight || 720;
+  const desired = S.canvas.width / S.canvas.height, va = vw / vh;
+  let sx, sy, sw, sh;
+  if (va > desired) {
+    sh = vh; sw = Math.floor(sh * desired);
+    sx = Math.floor((vw - sw) / 2); sy = 0;
+  } else {
+    sw = vw; sh = Math.floor(sw / desired);
+    sx = 0; sy = Math.floor((vh - sh) / 2);
+  }
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, S.canvas.width, S.canvas.height);
 
-if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
-// Größe skaliert bestimmen
-let w = logoImg.naturalWidth || logoImg.width;
-let h = logoImg.naturalHeight || logoImg.height;
-const s = Math.min(maxW / w, maxH / h, 1);
-w = Math.round(w * s); h = Math.round(h * s);
+  // --- Logo oben rechts ---
+  (function drawLogoOnCanvas(ctx, canvasW, canvasH) {
+    const padX = Math.round(canvasW * 0.02);  // Abstand rechts
+    const padY = Math.round(canvasH * 0.02);  // Abstand oben
+    const maxW = Math.round(canvasW * 0.18);  // max 18% Breite
+    const maxH = Math.round(canvasH * 0.18);  // max 18% Höhe
 
-// Logo zeichnen
-ctx.globalAlpha = 1.0;
-ctx.drawImage(logoImg, canvasW - w - pad, pad, w, h);
-} else {
-// Fallback: Text (falls kein Logo gewählt)
-ctx.globalAlpha = .9;
-ctx.fillStyle = '#0f172a';
-ctx.font = 'bold 54px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
-const text = 'AI Hub';
-const m = ctx.measureText(text);
-ctx.fillText(text, canvasW - m.width - pad, canvasH - pad);
-}
-ctx.restore();
-})(ctx, S.canvas.width, S.canvas.height);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
+    if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
+      let w = logoImg.naturalWidth || logoImg.width;
+      let h = logoImg.naturalHeight || logoImg.height;
+      const s = Math.min(maxW / w, maxH / h, 1);
+      w = Math.round(w * s); h = Math.round(h * s);
+
+      ctx.globalAlpha = 1.0;
+      ctx.drawImage(logoImg, canvasW - w - padX, padY, w, h);
+    } else {
+      ctx.globalAlpha = .9;
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 54px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
+      const text = 'AI Hub';
+      const m = ctx.measureText(text);
+      ctx.fillText(text, canvasW - m.width - padX, padY + 54);
+    }
+    ctx.restore();
+  })(ctx, S.canvas.width, S.canvas.height);
 }
 
 async function shutter() { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const ac = new AC(); const out = ac.createGain(); out.gain.value = .8; out.connect(ac.destination); const osc = ac.createOscillator(); osc.type = 'square'; const og = ac.createGain(); og.gain.setValueAtTime(.0001, ac.currentTime); og.gain.exponentialRampToValueAtTime(.6, ac.currentTime + .006); og.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + .09); osc.frequency.setValueAtTime(190, ac.currentTime); osc.connect(og).connect(out); const nb = ac.createBuffer(1, ac.sampleRate * .04, ac.sampleRate); const data = nb.getChannelData(0); for (let i = 0; i < data.length; i++) { data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2); } const noise = ac.createBufferSource(); noise.buffer = nb; const ng = ac.createGain(); ng.gain.value = .45; noise.connect(ng).connect(out); osc.start(); noise.start(); osc.stop(ac.currentTime + .1); noise.stop(ac.currentTime + .05); }
@@ -788,26 +803,51 @@ const free = (S.custom.value || '').trim(); const use = free ? free : (chosen ||
 
 async function pngBlob() { return new Promise(res => S.canvas.toBlob(b => res(b), 'image/png')); }
 async function compose(src) {
-const img = await new Promise((r, j) => { const im = new Image(); im.onload = () => r(im); im.onerror = j; im.src = src; }); const W = 1800, H = 1200; const out = document.createElement('canvas'); out.width = W; out.height = H; const ctx = out.getContext('2d'); const a = img.width / img.height, desired = W / H; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); let dw = W, dh = Math.round(W / a); if (dh > H) { dh = H; dw = Math.round(H * a); } const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2); ctx.drawImage(img, dx, dy, dw, dh);
-// --- Logo unten rechts (auf das 1800x1200-Result) ---
-if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
-const pad = Math.round(W * 0.02);
-const maxW = Math.round(W * 0.18);
-const maxH = Math.round(H * 0.18);
+  const img = await new Promise((r, j) => {
+    const im = new Image();
+    im.onload = () => r(im);
+    im.onerror = j;
+    im.src = src;
+  });
 
-let w = logoImg.naturalWidth || logoImg.width;
-let h = logoImg.naturalHeight || logoImg.height;
-const s = Math.min(maxW / w, maxH / h, 1);
-w = Math.round(w * s); h = Math.round(h * s);
+  const W = 1800, H = 1200;
+  const out = document.createElement('canvas');
+  out.width = W; out.height = H;
+  const ctx = out.getContext('2d');
 
-ctx.drawImage(logoImg, W - w - pad, pad, w, h);
-} else {
-// optionaler Text-Fallback
-ctx.save(); ctx.globalAlpha = .25; ctx.fillStyle = '#0f172a';
-ctx.font = 'bold 32px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
-const m = ctx.measureText('AI Hub'); ctx.fillText('AI Hub', W - m.width - 24, H - 24); ctx.restore();
-}
-return out.toDataURL('image/jpeg', .95);
+  const a = img.width / img.height, desired = W / H;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  let dw = W, dh = Math.round(W / a);
+  if (dh > H) { dh = H; dw = Math.round(H * a); }
+  const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2);
+  ctx.drawImage(img, dx, dy, dw, dh);
+
+  // --- Logo oben rechts ---
+  if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
+    const padX = Math.round(W * 0.02);
+    const padY = Math.round(H * 0.02);
+    const maxW = Math.round(W * 0.18);
+    const maxH = Math.round(H * 0.18);
+
+    let w = logoImg.naturalWidth || logoImg.width;
+    let h = logoImg.naturalHeight || logoImg.height;
+    const s = Math.min(maxW / w, maxH / h, 1);
+    w = Math.round(w * s); h = Math.round(h * s);
+
+    ctx.drawImage(logoImg, W - w - padX, padY, w, h);
+  } else {
+    ctx.save();
+    ctx.globalAlpha = .25;
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 32px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
+    const m = ctx.measureText('AI Hub');
+    ctx.fillText('AI Hub', W - m.width - 24, 24 + 32);
+    ctx.restore();
+  }
+
+  return out.toDataURL('image/jpeg', .95);
 }
 
 async function toOpenAI(p) {

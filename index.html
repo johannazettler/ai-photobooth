@@ -18,7 +18,7 @@
       --accent2: #60a5fa;
       --border: #e5eef8;
       --card: #fff;
-      --shadow: 0 10px 30px rgba(2, 6, 23, .06)
+      --shadow: 0 10px 30px rgba(2, 6, 23, .06) --vh: 1vh;
     }
 
     * {
@@ -102,12 +102,10 @@
     }
 
     .bigbar {
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      display: grid;
       gap: 10px;
       padding: 14px;
-      flex-wrap: wrap
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     }
 
     button {
@@ -118,7 +116,8 @@
       cursor: pointer;
       font-weight: 900;
       font-size: 1.05rem;
-      transition: transform .04s ease
+      transition: transform .04s ease;
+      min-height: 44px;
     }
 
     button:active {
@@ -336,6 +335,13 @@
       }
     }
 
+    @media (min-width: 768px){
+      #screenResult .result-img img{ object-fit: cover; }
+    }
+    @media (max-width: 480px){
+      #screenResult .result-img img{ object-fit: contain; }
+    }
+
     #screenGenerate {
       grid-template-rows: auto 1fr auto
     }
@@ -422,7 +428,7 @@
       width: 100%;
       height: 100%;
       max-width: 100%;
-      max-height: min(calc(100vh - 180px), 82vh);
+      max-height: min(calc(var(--vh) * 100 - 180px), 82vh);
       object-fit: contain;
       display: block;
       border-radius: 20px;
@@ -680,7 +686,7 @@
         logoClear: document.getElementById('logoClear'),
       };
 
-      // Logo Setzen, Vorscheu zeigen, Cache Bild anlegen
+      // Logo Setzen, Vorschau zeigen, Cache Bild anlegen
       function setLogo(dataUrl) {
         logoData = dataUrl || null;
         if (logoData) {
@@ -719,12 +725,68 @@
 
       async function listCams() { try { const all = await navigator.mediaDevices.enumerateDevices(); devices = all.filter(d => d.kind === 'videoinput'); const fill = (sel) => { sel.innerHTML = ''; sel.add(new Option('System-Standard', '')); devices.forEach(d => sel.add(new Option(d.label || 'Kamera', d.deviceId))); const pref = sessionStorage.getItem('camera_id') || ''; sel.value = pref; }; fill(S.cameraSel); fill(S.obCamera); } catch { } }
 
-      async function startCam() { if (!navigator.mediaDevices?.getUserMedia) { alert('Browser unterstützt Kamera nicht.'); return false; } if (!isSecureContext && !isLocal()) { alert('Bitte über https:// oder http://localhost öffnen.'); return false; } try { if (active()) return true; const id = sessionStorage.getItem('camera_id') || ''; const vc = { width: { ideal: 1800 }, height: { ideal: 1200 }, aspectRatio: 3 / 2, frameRate: { ideal: 30 } }; if (id) vc.deviceId = { exact: id }; stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: vc }); S.video.srcObject = stream; await S.video.play().catch(() => { }); sessionStorage.setItem('pb_perm_granted', '1'); await listCams(); return true; } catch (e) { return false; } }
+      function stageIdealSize() {
+        const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+        const stage = document.querySelector('.card.stage') || S.preview;
+        const rect = stage.getBoundingClientRect();
+        // Zielverhältnis 3:2 beibehalten, gedeckelt
+        const cssW = Math.min(rect.width, 1200);
+        const cssH = cssW * 2 / 3;
+        const idealW = Math.min(1920, Math.round(cssW * dpr));
+        const idealH = Math.min(1280, Math.round(cssH * dpr));
+        return { idealW, idealH };
+      }
+
+      async function startCam() {
+        // Basis-Checks
+        if (!navigator.mediaDevices?.getUserMedia) {
+          alert('Browser unterstützt Kamera nicht.');
+          return false;
+        }
+        if (!isSecureContext && !isLocal()) {
+          alert('Bitte über https:// oder http://localhost öffnen.');
+          return false;
+        }
+
+        try {
+          if (active()) return true;
+
+          const id = sessionStorage.getItem('camera_id') || '';
+          const { idealW, idealH } = stageIdealSize();
+
+          // ✅ KORREKT: alles innerhalb des einen Objekt-Literals
+          const vc = {
+            width:       { ideal: idealW },
+            height:      { ideal: idealH },
+            aspectRatio: 3 / 2,
+            frameRate:   { ideal: 30 }
+          };
+          if (id) vc.deviceId = { exact: id };
+
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: vc });
+          S.video.srcObject = stream;
+
+          // iOS/Safari mögen das:
+          S.video.playsInline = true;
+          S.video.muted = true;
+
+          await S.video.play().catch(() => {});
+          sessionStorage.setItem('pb_perm_granted', '1');
+
+          await listCams();  // Kameraliste aktualisieren
+          return true;
+        } catch (e) {
+          console.error('getUserMedia failed:', e);
+          alert('Kamera konnte nicht gestartet werden: ' + (e?.message || e));
+          return false;
+        }
+      }
 
       async function ensurePreview() { if (active()) return; const ok = sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted'; if (ok) { await startCam(); await waitReady(); } }
       async function waitReady(timeout = 8000) { if (S.video.readyState >= 2 && S.video.videoWidth && S.video.videoHeight) return true; return await new Promise(res => { const on = () => { if (S.video.videoWidth && S.video.videoHeight) { off(); res(true); } }; const off = () => { S.video.removeEventListener('loadedmetadata', on); S.video.removeEventListener('canplay', on); }; S.video.addEventListener('loadedmetadata', on); S.video.addEventListener('canplay', on); setTimeout(() => { off(); res(false); }, timeout); }); }
 
       function draw() {
+        fitCanvasToStage();
         const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1)); const W = 1800, H = 1200; S.canvas.width = Math.floor(W * dpr); S.canvas.height = Math.floor(H * dpr); const ctx = S.canvas.getContext('2d'); ctx.setTransform(-1, 0, 0, 1, S.canvas.width, 0); const vw = S.video.videoWidth || 1280, vh = S.video.videoHeight || 720; const desired = S.canvas.width / S.canvas.height, va = vw / vh; let sx, sy, sw, sh; if (va > desired) { sh = vh; sw = Math.floor(sh * desired); sx = Math.floor((vw - sw) / 2); sy = 0; } else { sw = vw; sh = Math.floor(sw / desired); sx = 0; sy = Math.floor((vh - sh) / 2); } ctx.imageSmoothingQuality = 'high'; ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, S.canvas.width, S.canvas.height);
         // --- Logo unten rechts ---
         (function drawLogoOnCanvas(ctx, canvasW, canvasH) {
@@ -759,7 +821,7 @@
         })(ctx, S.canvas.width, S.canvas.height);
 
       }
-      
+
       async function shutter() { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const ac = new AC(); const out = ac.createGain(); out.gain.value = .8; out.connect(ac.destination); const osc = ac.createOscillator(); osc.type = 'square'; const og = ac.createGain(); og.gain.setValueAtTime(.0001, ac.currentTime); og.gain.exponentialRampToValueAtTime(.6, ac.currentTime + .006); og.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + .09); osc.frequency.setValueAtTime(190, ac.currentTime); osc.connect(og).connect(out); const nb = ac.createBuffer(1, ac.sampleRate * .04, ac.sampleRate); const data = nb.getChannelData(0); for (let i = 0; i < data.length; i++) { data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2); } const noise = ac.createBufferSource(); noise.buffer = nb; const ng = ac.createGain(); ng.gain.value = .45; noise.connect(ng).connect(out); osc.start(); noise.start(); osc.stop(ac.currentTime + .1); noise.stop(ac.currentTime + .05); }
       function flash() { S.flash.classList.add('on'); setTimeout(() => S.flash.classList.remove('on'), 180); }
 
@@ -817,6 +879,31 @@
           try { const fd2 = new FormData(); fd2.append('model', 'gpt-image-1'); fd2.append('prompt', p); fd2.append('image', await pngBlob(), 'input.png'); fd2.append('size', '1024x1024'); const r2 = await fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: fd2 }); if (!r2.ok) throw new Error(await r2.text()); const j2 = await r2.json(); const b642 = j2 && j2.data && j2.data[0] && j2.data[0].b64_json; if (!b642) throw new Error('Keine Bilddaten'); let url2 = 'data:image/png;base64,' + b642; url2 = await compose(url2); S.resultBox.innerHTML = ''; const img2 = new Image(); img2.src = url2; S.resultBox.appendChild(img2); S.finalImg.src = url2; showScreen('result'); }
           catch (err) { console.error(err); S.resultBox.innerHTML = '<div class="progress">❗ Fehler bei der KI‑Generierung. Details in der Konsole.</div>'; }
         }
+      }
+
+      function fitCanvasToStage(){
+        const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+        const rect = (document.querySelector('.card.stage') || S.canvas).getBoundingClientRect();
+        const W = 1800, H = 1200; // Zieloutput bleibt 3:2
+        // interne Auflösung auf sichtbare Größe * dpr, aber min. Output-Ziel
+        const targetW = Math.max(W, Math.round(rect.width  * dpr));
+        const targetH = Math.max(H, Math.round(rect.height * dpr * (2/3) )); // Verhältnis wird durch CSS aspect-ratio gehalten
+        if (S.canvas.width !== targetW || S.canvas.height !== targetH){
+          S.canvas.width = targetW;
+          S.canvas.height = targetH;
+        }
+      }
+      function observeStageResize(){
+        const stage = document.querySelector('.card.stage');
+        if (!stage || !window.ResizeObserver) return;
+        const ro = new ResizeObserver(() => {
+          fitCanvasToStage();
+          if (S.captured.classList.contains('active')) { // Vorschau-Bild aktualisieren
+            // optional: draw() neu, damit Logo/Foto nicht skaliert wirkt
+            draw();
+          }
+        });
+        ro.observe(stage);
       }
 
       // ===== Drive (no forced OAuth on reload) =====
@@ -1017,9 +1104,22 @@
       // Permissions init
       async function initPerm() { try { if (navigator.permissions && navigator.permissions.query) { const st = await navigator.permissions.query({ name: 'camera' }); perm = st.state; st.onchange = () => perm = st.state; } } catch { } }
 
+      function setVHVar() {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      }
+      window.addEventListener('resize', setVHVar);
+      window.addEventListener('orientationchange', setVHVar);
+      setVHVar();
+
       // Init
-      (async function init() { document.title = 'AI HUB Photobooth'; S.version.textContent = V; await initPerm(); await updPerm(); await listCams(); showScreen('preview'); if ((sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted') && !active()) { const ok = await startCam(); if (ok) await waitReady(); } setDriveStatus(); openOnboardingIfNeeded(); if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) { navigator.mediaDevices.addEventListener('devicechange', listCams); if (logoData) {logoImg = new Image(); logoImg.src = logoData;
-        }} })();
+      (async function init() {
+        document.title = 'AI HUB Photobooth'; S.version.textContent = V; await initPerm(); await updPerm(); await listCams(); showScreen('preview'); fitCanvasToStage(); observeStageResize(); if ((sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted') && !active()) { const ok = await startCam(); if (ok) await waitReady(); } setDriveStatus(); openOnboardingIfNeeded(); if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+          navigator.mediaDevices.addEventListener('devicechange', listCams); if (logoData) {
+            logoImg = new Image(); logoImg.src = logoData;
+          }
+        }
+      })();
     })();
   </script>
 </body>

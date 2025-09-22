@@ -198,14 +198,14 @@
       b.setAttribute('aria-pressed', s === chosen ? 'true' : 'false');
       b.innerHTML = `<div class="thumb">${emojis[i % emojis.length]}</div><div class="label">${s}</div>`;
       b.addEventListener('click', () => {
-        chosen = s; S.custom.value = ''; [...S.styleGrid.children].forEach(c => c.setAttribute('aria-pressed', 'false'));
+        chosen = s; S.custom.value = '';[...S.styleGrid.children].forEach(c => c.setAttribute('aria-pressed', 'false'));
         b.setAttribute('aria-pressed', 'true');
       });
       S.styleGrid.appendChild(b);
     });
   }
   S.custom.addEventListener('input', () => {
-    if ((S.custom.value || '').trim().length) { chosen = null; [...S.styleGrid.children].forEach(c => c.setAttribute('aria-pressed', 'false')); }
+    if ((S.custom.value || '').trim().length) { chosen = null;[...S.styleGrid.children].forEach(c => c.setAttribute('aria-pressed', 'false')); }
   });
 
   function promptText() {
@@ -488,7 +488,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (S.qr.style.display === 'flex') S.qr.style.display = 'none';
-      if (S.onboard.style.display === 'flex') {/* Pflicht: nicht schließen */}
+      if (S.onboard.style.display === 'flex') {/* Pflicht: nicht schließen */ }
       if (S.settings.style.display === 'flex') closeSettings();
     }
   });

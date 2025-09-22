@@ -669,7 +669,7 @@
         video: el('video'), canvas: el('canvas'), count: el('count'), flash: el('flash'),
         shoot: el('shootBtn'), cont: el('continueBtn'), retry: el('retryBtn'),
         styleGrid: el('styleGrid'), custom: el('customStyle'), startGen: el('startGenBtn'), prompt: el('promptOut'), resultBox: el('resultBox'),
-        finalImg: el('finalImg'), print: el('printBtn'), share: el('shareBtn'), gmail: el('gmailBtn'), restartBig: el('restartBigBtn'),
+        finalImg: el('finalImg'), print: el('printBtn'), share: el('shareBtn'), /* gmail: el('gmailBtn') */ restartBig: el('restartBigBtn'),
         restartFab: el('restartFab'), settingsFab: el('settingsFab'), settings: el('settings'), closeSettings: el('closeSettings'),
         cameraSel: el('cameraSel'), apiKey: el('apiKey'), version: el('versionText'),
         onboard: el('onboard'), obCamera: el('obCamera'), obGrantCam: el('obGrantCam'), obApi: el('obApiKey'), obDriveConn: el('obDriveConnect'), obDone: el('obDone'), obMissing: el('obMissing'), obDriveStatus: el('obDriveStatus'),
@@ -705,7 +705,7 @@
 
       // Drive state
       const drive = { clientId: '', token: null, tokenClient: null, authorized: (localStorage.getItem('drive_authorized') === '1') };
-      const gmail = { token: null, tokenClient: null, authorized: (localStorage.getItem('gmail_authorized') === '1') };
+      /* const gmail = { token: null, tokenClient: null, authorized: (localStorage.getItem('gmail_authorized') === '1') }; */
       let driveFolder = JSON.parse(localStorage.getItem('drive_folder') || 'null');
 
       // Utils
@@ -822,7 +822,8 @@
       // ===== Drive (no forced OAuth on reload) =====
       const loadClientId = async () => { if (drive.clientId) return drive.clientId; const meta = document.querySelector('meta[name="google-signin-client_id"]'); if (meta && meta.content) { drive.clientId = meta.content.trim(); return drive.clientId; } return null; };
       const initToken = () => { if (!(window.google && google.accounts && google.accounts.oauth2) && drive.clientId) return null; if (!drive.clientId) return null; return google.accounts.oauth2.initTokenClient({ client_id: drive.clientId, scope: 'https://www.googleapis.com/auth/drive.file', callback: (resp) => { if (resp && resp.access_token) { drive.token = resp.access_token; setDriveStatus(); } } }); };
-
+  	  
+      /*
       async function ensureGmailToken({ interactive = true } = {}) {
         // Client-ID aus <meta name="google-signin-client_id"> holen – wird in loadClientId() gesetzt
         const clientId = await loadClientId(); // vorhanden in deiner Datei
@@ -847,10 +848,11 @@
           gmail.tokenClient.requestAccessToken({ prompt: gmail.authorized ? '' : (interactive ? 'consent' : '') });
         } catch (e) { /* ignore */ }
 
-        // kurz auf den Token warten (sleep() ist in deiner Datei vorhanden)
+        // kurz auf den Token warten (sleep() ist in deiner Datei vorhanden) */
+        /*
         for (let i = 0; i < 50; i++) { if (gmail.token) return gmail.token; await sleep(100); }
         return gmail.token;
-      }
+      } 
 
       // Hilfsfunktionen für Encoding (Gmail verlangt base64url von der gesamten MIME-Nachricht)
       const utf8b64 = (s) => btoa(unescape(encodeURIComponent(s)));
@@ -859,7 +861,8 @@
 
       // E-Mail mit JPEG-Anhang via Gmail API senden
       async function sendWithGmail({ to, subject, body, dataUrl, fileName }) {
-        const token = await ensureGmailToken({ interactive: true });
+        /* const token = await ensureGmailToken({ interactive: true }); */
+      /*
         if (!token) throw new Error('Gmail nicht verbunden (OAuth)');
 
         const boundary = 'mime_' + Math.random().toString(36).slice(2);
@@ -900,21 +903,21 @@
         if (!resp.ok) throw new Error(await resp.text());
         return await resp.json();
       }
-
+      */
 
       // Silent token (keine UI), nur wenn früher authorisiert
       async function ensureToken(opts) {
-        opts = opts || {}; const interactive = !!opts.interactive; if (drive.token) return drive.token; await loadClientId(); if (!drive.clientId) return null; drive.tokenClient = initToken(); if (!drive.tokenClient) return null;
-        if (drive.authorized) { // silent
-          try { drive.tokenClient.requestAccessToken({ prompt: '' }); } catch (e) { /*ignore*/ }
-          for (let i = 0; i < 20; i++) { if (drive.token) return drive.token; await sleep(100); }
+          opts = opts || {}; const interactive = !!opts.interactive; if (drive.token) return drive.token; await loadClientId(); if (!drive.clientId) return null; drive.tokenClient = initToken(); if (!drive.tokenClient) return null;
+          if (drive.authorized) { // silent
+            try { drive.tokenClient.requestAccessToken({ prompt: '' }); } catch (e) { /*ignore*/ }
+            for (let i = 0; i < 20; i++) { if (drive.token) return drive.token; await sleep(100); }
+          }
+          if (interactive) {
+            try { drive.tokenClient.requestAccessToken({ prompt: 'consent' }); } catch (e) { }
+            for (let i = 0; i < 50; i++) { if (drive.token) { localStorage.setItem('drive_authorized', '1'); drive.authorized = true; return drive.token; } await sleep(100); }
+          }
+          return drive.token;
         }
-        if (interactive) {
-          try { drive.tokenClient.requestAccessToken({ prompt: 'consent' }); } catch (e) { }
-          for (let i = 0; i < 50; i++) { if (drive.token) { localStorage.setItem('drive_authorized', '1'); drive.authorized = true; return drive.token; } await sleep(100); }
-        }
-        return drive.token;
-      }
 
       function setDriveStatus() { const txt = [drive.token ? 'verbunden' : 'nicht verbunden', driveFolder ? ('Ordner: ' + (driveFolder.name || '')) : ''].filter(Boolean).join(' · '); S.driveStatus.textContent = txt; S.obDriveStatus.textContent = txt; }
 
@@ -988,6 +991,7 @@
       S.driveConn.addEventListener('click', async () => { await ensureToken({ interactive: true }); setDriveStatus(); });
       S.qrClose.addEventListener('click', () => { S.qr.style.display = 'none'; }); S.qr.addEventListener('click', (e) => { if (e.target === S.qr) S.qr.style.display = 'none'; });
 
+      /*
       // Gmail button
       S.gmail.addEventListener('click', async () => {
         if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
@@ -1005,8 +1009,8 @@
         } catch (e) {
           console.error(e);
           alert('Gmail-Fehler: ' + (e?.message || e));
-        }
-      });
+        } 
+      }); */
 
       // Onboard events
       S.obGrantCam.addEventListener('click', async () => { sessionStorage.setItem('camera_id', S.obCamera.value || ''); await startCam(); await waitReady(); });
@@ -1018,9 +1022,35 @@
       async function initPerm() { try { if (navigator.permissions && navigator.permissions.query) { const st = await navigator.permissions.query({ name: 'camera' }); perm = st.state; st.onchange = () => perm = st.state; } } catch { } }
 
       // Init
-      (async function init() { document.title = 'AI HUB Photobooth'; S.version.textContent = V; await initPerm(); await updPerm(); await listCams(); showScreen('preview'); if ((sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted') && !active()) { const ok = await startCam(); if (ok) await waitReady(); } setDriveStatus(); openOnboardingIfNeeded(); if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) { navigator.mediaDevices.addEventListener('devicechange', listCams); if (logoData) {logoImg = new Image(); logoImg.src = logoData;
-        }} })();
-    })();
+      (async function init() {
+        document.title = 'AI HUB Photobooth';
+        S.version.textContent = V;
+
+        await initPerm();
+        await updPerm();
+        await listCams();
+
+        showScreen('preview');
+
+        if ((sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted') && !active()) {
+          const ok = await startCam();
+          if (ok) await waitReady();
+        }
+
+        setDriveStatus();
+        openOnboardingIfNeeded();
+
+        // Geräte-Änderungen beobachten
+        if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+          navigator.mediaDevices.addEventListener('devicechange', listCams);
+        }
+
+        // Logo-Preload (falls vorhanden)
+        if (logoData) {
+          logoImg = new Image();
+          logoImg.src = logoData;
+        }
+      })();
   </script>
 </body>
 

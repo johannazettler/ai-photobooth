@@ -466,7 +466,22 @@
     await toOpenAI(p);
   });
 
-  S.print.addEventListener('click', () => window.print());
+  S.print.addEventListener('click', async () => {
+    if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
+  
+    try {
+      // Bild in Drive hochladen → gibt Freigabe-Link zurück
+      const link = await uploadShare(S.finalImg.src);
+  
+      // Direkt in neuem Tab öffnen
+      window.open(link, '_blank');
+  
+      // Optional trotzdem lokalen Druck starten:
+      // window.print();
+    } catch (e) {
+      alert('Fehler beim Hochladen zu Drive: ' + e.message);
+    }
+  });
 
   S.share.addEventListener('click', async () => {
     if (!S.finalImg.src) return;

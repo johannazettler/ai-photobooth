@@ -534,7 +534,20 @@
 
   // ===== Events =====
   S.shoot.addEventListener('click', shoot);
-  S.cont.addEventListener('click', () => { showScreen('style'); renderStyles(); });
+  S.cont.addEventListener('click', (e) => {
+    // Falls der Button in einem <form> steckt: Submit verhindern
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+  
+    // Screen sofort umschalten
+    showScreen('style');
+  
+    // Styles nur rendern, wenn das Grid-Element vorhanden ist
+    try {
+      if (S.styleGrid) renderStyles();
+    } catch (err) {
+      console.error('renderStyles() fehlgeschlagen:', err);
+    }
+  });
   S.retry.addEventListener('click', retry);
 
   S.startGen.addEventListener('click', async () => {

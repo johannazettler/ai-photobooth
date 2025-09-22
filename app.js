@@ -523,50 +523,82 @@
   S.print.addEventListener('click', async () => {
     if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
   
-    // 1) Tab sofort öffnen (vermeidet Popup-Blocker)
-    const w = window.open('about:blank', '_blank'); // bewusst ohne "noopener" als Feature
-    if (!w) { alert('Popup blockiert – bitte Popups für diese Seite erlauben.'); return; }
+    // Fenster sofort öffnen (Popup-Blocker-sicher)
+    const w = window.open('about:blank', '_blank');
+    if (!w) { alert('Popup blockiert – bitte Popups erlauben.'); return; }
   
-    // 2) Spinner/Status in neuem Tab rendern
+    // Status/Spinner
     w.document.open();
     w.document.write(`<!doctype html>
       <meta charset="utf-8">
       <title>Hochladen…</title>
       <style>
         html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto}
-        .box{height:100%;display:grid;place-items:center}
-        .card{padding:20px;border:1px solid #e5eef8;border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,.06)}
+        .box{height:100%;display:grid;place-items:center;background:#f7fbff}
+        .card{padding:20px 24px;border:1px solid #e5eef8;border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,.06);background:#fff}
         .muted{color:#64748b}
       </style>
       <body>
-        <div class="box">
-          <div class="card">
-            <div>📤 <strong>Hochladen zu Google Drive…</strong></div>
-            <div class="muted" id="msg">Bitte warten…</div>
-          </div>
-        </div>
+        <div class="box"><div class="card">
+          <div>📤 <strong>Hochladen zu Google Drive…</strong></div>
+          <div class="muted" id="msg">Bitte warten…</div>
+        </div></div>
       </body>`);
     w.document.close();
   
     try {
-      // 3) Upload (holt bei Bedarf OAuth-Token per Nutzerinteraktion)
-      const link = await uploadShare(S.finalImg.src); // gibt z.B. https://drive.google.com/uc?id=... zurück
+      // Upload + Freigabe
+      const rawLink = await uploadShare(S.finalImg.src);
   
-      // 4) Nach Upload: druckoptimierte Seite im selben Fenster rendern + automatisch drucken
+      // kurze Pause, damit die 'anyone' Freigabe sicher propagiert
+      await new Promise(r => setTimeout(r, 400));
+  
+      // robustere Linkvarianten + Cache-Buster
+      const ts = Date.now();
+      const asDownload = rawLink.includes('uc?')
+        ? rawLink.replace('uc?id=', 'uc?export=download&id=')
+        : rawLink;
+      const asView = rawLink.includes('uc?')
+        ? rawLink.replace('uc?id=', 'uc?export=view&id=')
+        : rawLink;
+  
+      const candidates = [
+        `${asDownload}&t=${ts}`,
+        `${asView}&t=${ts}`,
+        `${rawLink}${rawLink.includes('?') ? '&' : '?'}t=${ts}`
+      ];
+  
+      // Preload-Check: Versuche Kandidaten nacheinander zu laden
+      const goodSrc = await (async function findWorkingSrc() {
+        for (const url of candidates) {
+          try {
+            await new Promise((resolve, reject) => {
+              const img = new Image();
+              // Referrer wegnehmen – hilft bei manchen Drive-Setups
+              img.referrerPolicy = 'no-referrer';
+              img.onload = () => resolve();
+              img.onerror = () => reject(new Error('img error'));
+              img.src = url;
+            });
+            return url; // erster funktionierender Kandidat
+          } catch { /* nächster Kandidat */ }
+        }
+        throw new Error('Bild von Drive konnte nicht geladen werden (alle Varianten fehlgeschlagen).');
+      })();
+  
+      // Druckseite erst rendern, wenn Bild sicher ladbar ist
       const printableHTML = `<!doctype html>
         <html>
         <head>
           <meta charset="utf-8">
           <title>Drucken</title>
           <style>
-            /* exakt 148 x 100 mm quer, ohne Ränder */
             @page { size: 148mm 100mm landscape; margin: 0 }
             html, body {
               width:148mm; height:100mm; margin:0; padding:0; background:#fff;
               -webkit-print-color-adjust:exact; print-color-adjust:exact
             }
             img { width:148mm; height:100mm; object-fit:cover; display:block }
-            /* UI-Leiste nur am Bildschirm */
             .bar{position:fixed;top:8px;right:8px;display:flex;gap:8px}
             .btn{font:12px system-ui;padding:.45rem .7rem;border:1px solid #e5eef8;border-radius:999px;background:#fff;text-decoration:none;cursor:pointer}
             .msg{position:fixed;left:8px;bottom:8px;font:12px system-ui;color:#444;background:#fff;border:1px solid #e5eef8;border-radius:8px;padding:6px 8px}
@@ -575,13 +607,13 @@
         </head>
         <body>
           <div class="bar">
-            <a class="btn" href="${link}" target="_blank" rel="noopener">Auf Drive öffnen</a>
+            <a class="btn" href="${rawLink}" target="_blank" rel="noopener">Auf Drive öffnen</a>
             <button class="btn" onclick="window.print()">Nochmal drucken</button>
             <button class="btn" onclick="window.close()">Fenster schließen</button>
           </div>
-          <img id="photo" src="${link}" alt="Photo">
+          <img id="photo" referrerpolicy="no-referrer" src="${goodSrc}" alt="Photo">
           <div id="fallback" class="msg" style="display:none">
-            Bild lädt nicht? <a href="${link}" target="_blank" rel="noopener">Hier auf Drive öffnen</a>.
+            Bild lädt nicht? <a href="${rawLink}" target="_blank" rel="noopener">Hier auf Drive öffnen</a>.
           </div>
           <script>
             const img = document.getElementById('photo');
@@ -589,8 +621,7 @@
             function tryPrint(){ if(printed) return; printed = true; setTimeout(()=>window.print(), 250); }
             img.addEventListener('load', tryPrint);
             img.addEventListener('error', () => { document.getElementById('fallback').style.display = 'block'; });
-            // Sicherheitsnetz: falls 'load' nicht feuert, nach 1.5s trotzdem versuchen
-            setTimeout(tryPrint, 1500);
+            setTimeout(tryPrint, 1500); // Sicherheitsnetz
           <\/script>
         </body>
         </html>`;
@@ -600,16 +631,20 @@
       w.document.close();
   
     } catch (e) {
-      // 5) Fehler im Upload -> im Tab anzeigen
       try {
+        const msg = (e && e.message) || String(e);
         w.document.body.innerHTML = `
           <div class="box"><div class="card">
-            <div>❗ <strong>Upload-Fehler</strong></div>
-            <div class="muted" style="max-width:560px">${(e && e.message) || e}</div>
+            <div>❗ <strong>Fehler</strong></div>
+            <div class="muted" style="max-width:560px">${msg}</div>
+            <div style="margin-top:10px">
+              <a href="javascript:window.close()" style="display:inline-block;padding:.5rem .8rem;border:1px solid #e5eef8;border-radius:999px;text-decoration:none">Fenster schließen</a>
+            </div>
           </div></div>`;
-      } catch { /* nichts */ }
+      } catch { /* noop */ }
     }
   });
+  
   
 
   S.share.addEventListener('click', async () => {

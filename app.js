@@ -1,6 +1,9 @@
 (function () {
   const V = 'AI HUB Photobooth v13.2.0 (2025-08-15)';
   const el = (id) => document.getElementById(id);
+  // Logo-Sicherheitsabstand
+  const safeMarginX = 40; // Abstand in Pixeln vom rechten Rand
+  const safeMarginY = 40; // Abstand in Pixeln vom oberen Rand
   const S = {
     preview: el('screenPreview'), captured: el('screenCaptured'), style: el('screenStyle'), gen: el('screenGenerate'), result: el('screenResult'),
     video: el('video'), canvas: el('canvas'), count: el('count'), flash: el('flash'),
@@ -124,7 +127,7 @@
     if (va > desired) { sh = vh; sw = Math.floor(sh * desired); sx = Math.floor((vw - sw) / 2); sy = 0; }
     else { sw = vw; sh = Math.floor(sw / desired); sx = 0; sy = Math.floor((vh - sh) / 2); }
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, S.canvas.width, S.canvas.height);
+    ctx.drawImage(logoImg, canvasW - w - safeMarginX, safeMarginY, w, h);
 
     // Logo oben rechts
     (function drawLogoOnCanvas(ctx, canvasW, canvasH) {
@@ -233,8 +236,8 @@
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
     let dw = W, dh = Math.round(W / a);
     if (dh > H) { dh = H; dw = Math.round(H * a); }
-    const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2);
-    ctx.drawImage(img, dx, dy, dw, dh);
+    // const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2);
+    ctx.drawImage(logoImg, W - w - safeMarginX, safeMarginY, w, h);
 
     // Logo oben rechts
     if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {

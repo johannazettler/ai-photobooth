@@ -469,19 +469,32 @@
   S.print.addEventListener('click', async () => {
     if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
   
+    // 1) Tab synchron öffnen (innerhalb des Klick-Events)
+    const w = window.open('', '_blank', 'noopener'); 
+    if (!w) { 
+      alert('Popup blockiert – bitte Popups/Weiterleitungen erlauben.');
+      return; 
+    }
+  
+    // Kurze "Warte"-Seite schreiben (optional)
+    w.document.write(`<!doctype html><meta charset="utf-8">
+    <title>Hochladen…</title>
+    <body style="font-family:system-ui;padding:20px">
+      Hochladen zu Google Drive… bitte warten.
+    </body>`);
+  
     try {
-      // Bild in Drive hochladen → gibt Freigabe-Link zurück
-      const link = await uploadShare(S.finalImg.src);
+      // 2) Upload durchführen (asynchron)
+      const link = await uploadShare(S.finalImg.src); // gibt z.B. https://drive.google.com/uc?id=... zurück
   
-      // Direkt in neuem Tab öffnen
-      window.open(link, '_blank');
-  
-      // Optional trotzdem lokalen Druck starten:
-      // window.print();
+      // 3) Nach dem Upload den bereits geöffneten Tab umleiten
+      w.location.replace(link);
     } catch (e) {
-      alert('Fehler beim Hochladen zu Drive: ' + e.message);
+      // Fehler sichtbar machen, damit der Tab nicht leer bleibt
+      w.document.body.textContent = 'Upload-Fehler: ' + (e?.message || e);
     }
   });
+  
 
   S.share.addEventListener('click', async () => {
     if (!S.finalImg.src) return;

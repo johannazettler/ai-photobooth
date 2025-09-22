@@ -520,20 +520,76 @@
     await toOpenAI(p);
   });
 
-  // Dein „Drucken öffnet Drive-Link“-Listener bleibt wie gewünscht
   S.print.addEventListener('click', async () => {
     if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
-
-    // Popup-Blocker-sicher: Tab JETZT öffnen, später umleiten
-    const w = window.open('', '_blank', 'noopener');
-    if (!w) { alert('Popup blockiert – bitte Popups erlauben.'); return; }
-    w.document.write(`<!doctype html><meta charset="utf-8"><title>Hochladen…</title><body style="font-family:system-ui;padding:20px">Hochladen zu Google Drive… bitte warten.</body>`);
-
+  
+    // 1) Tab sofort öffnen (vermeidet Popup-Blocker)
+    const w = window.open('about:blank', '_blank'); // bewusst ohne "noopener" als Feature
+    if (!w) { alert('Popup blockiert – bitte Popups für diese Seite erlauben.'); return; }
+  
+    // 2) Spinner/Status in neuem Tab rendern
+    w.document.open();
+    w.document.write(`<!doctype html>
+      <meta charset="utf-8">
+      <title>Hochladen…</title>
+      <style>
+        html,body{height:100%;margin:0;font-family:system-ui,Segoe UI,Roboto}
+        .box{height:100%;display:grid;place-items:center}
+        .card{padding:20px;border:1px solid #e5eef8;border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,.06)}
+        .muted{color:#64748b}
+        .btn{display:inline-block;margin-top:12px;padding:.6rem .9rem;border-radius:999px;border:1px solid #e5eef8;text-decoration:none}
+      </style>
+      <body>
+        <div class="box">
+          <div class="card">
+            <div>📤 <strong>Hochladen zu Google Drive…</strong></div>
+            <div class="muted" id="msg">Bitte warten…</div>
+            <div id="fallback" style="display:none">
+              <a id="openLink" class="btn" target="_self" rel="noopener">Link im selben Tab öffnen</a>
+            </div>
+          </div>
+        </div>
+      </body>`);
+    w.document.close();
+  
     try {
+      // 3) Upload (holt bei Bedarf OAuth-Token per Nutzerinteraktion)
       const link = await uploadShare(S.finalImg.src);
-      w.location.replace(link);
+  
+      // 4) Versuch: direkte Navigation im bereits geöffneten Tab
+      try {
+        w.location.href = link;           // primär
+        // Safety-Nachschub: falls Navigation doch blockiert wird, zeig Button
+        setTimeout(() => {
+          try {
+            if (w.location.href === 'about:blank') {
+              const msg = w.document.getElementById('msg');
+              const fb  = w.document.getElementById('fallback');
+              const a   = w.document.getElementById('openLink');
+              if (msg) msg.textContent = 'Navigation blockiert. Klicke auf den Button:';
+              if (a)  { a.href = link; a.textContent = 'Zum Bild auf Google Drive'; }
+              if (fb) fb.style.display = 'block';
+            }
+          } catch { /* ignorieren */ }
+        }, 600);
+      } catch {
+        // 5) Fallback: manueller Button anzeigen
+        const msg = w.document.getElementById('msg');
+        const fb  = w.document.getElementById('fallback');
+        const a   = w.document.getElementById('openLink');
+        if (msg) msg.textContent = 'Navigation fehlgeschlagen. Klicke auf den Button:';
+        if (a)  { a.href = link; a.textContent = 'Zum Bild auf Google Drive'; }
+        if (fb) fb.style.display = 'block';
+      }
     } catch (e) {
-      w.document.body.textContent = 'Upload-Fehler: ' + (e?.message || e);
+      // 6) Fehler im Upload -> im Tab anzeigen
+      try {
+        w.document.body.innerHTML = `
+          <div class="box"><div class="card">
+            <div>❗ <strong>Upload-Fehler</strong></div>
+            <div class="muted" style="max-width:560px">${(e && e.message) || e}</div>
+          </div></div>`;
+      } catch { /* nichts */ }
     }
   });
 

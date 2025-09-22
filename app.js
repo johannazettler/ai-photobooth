@@ -537,16 +537,12 @@
         .box{height:100%;display:grid;place-items:center}
         .card{padding:20px;border:1px solid #e5eef8;border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,.06)}
         .muted{color:#64748b}
-        .btn{display:inline-block;margin-top:12px;padding:.6rem .9rem;border-radius:999px;border:1px solid #e5eef8;text-decoration:none}
       </style>
       <body>
         <div class="box">
           <div class="card">
             <div>📤 <strong>Hochladen zu Google Drive…</strong></div>
             <div class="muted" id="msg">Bitte warten…</div>
-            <div id="fallback" style="display:none">
-              <a id="openLink" class="btn" target="_self" rel="noopener">Link im selben Tab öffnen</a>
-            </div>
           </div>
         </div>
       </body>`);
@@ -554,35 +550,57 @@
   
     try {
       // 3) Upload (holt bei Bedarf OAuth-Token per Nutzerinteraktion)
-      const link = await uploadShare(S.finalImg.src);
+      const link = await uploadShare(S.finalImg.src); // gibt z.B. https://drive.google.com/uc?id=... zurück
   
-      // 4) Versuch: direkte Navigation im bereits geöffneten Tab
-      try {
-        w.location.href = link;           // primär
-        // Safety-Nachschub: falls Navigation doch blockiert wird, zeig Button
-        setTimeout(() => {
-          try {
-            if (w.location.href === 'about:blank') {
-              const msg = w.document.getElementById('msg');
-              const fb  = w.document.getElementById('fallback');
-              const a   = w.document.getElementById('openLink');
-              if (msg) msg.textContent = 'Navigation blockiert. Klicke auf den Button:';
-              if (a)  { a.href = link; a.textContent = 'Zum Bild auf Google Drive'; }
-              if (fb) fb.style.display = 'block';
+      // 4) Nach Upload: druckoptimierte Seite im selben Fenster rendern + automatisch drucken
+      const printableHTML = `<!doctype html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Drucken</title>
+          <style>
+            /* exakt 148 x 100 mm quer, ohne Ränder */
+            @page { size: 148mm 100mm landscape; margin: 0 }
+            html, body {
+              width:148mm; height:100mm; margin:0; padding:0; background:#fff;
+              -webkit-print-color-adjust:exact; print-color-adjust:exact
             }
-          } catch { /* ignorieren */ }
-        }, 600);
-      } catch {
-        // 5) Fallback: manueller Button anzeigen
-        const msg = w.document.getElementById('msg');
-        const fb  = w.document.getElementById('fallback');
-        const a   = w.document.getElementById('openLink');
-        if (msg) msg.textContent = 'Navigation fehlgeschlagen. Klicke auf den Button:';
-        if (a)  { a.href = link; a.textContent = 'Zum Bild auf Google Drive'; }
-        if (fb) fb.style.display = 'block';
-      }
+            img { width:148mm; height:100mm; object-fit:cover; display:block }
+            /* UI-Leiste nur am Bildschirm */
+            .bar{position:fixed;top:8px;right:8px;display:flex;gap:8px}
+            .btn{font:12px system-ui;padding:.45rem .7rem;border:1px solid #e5eef8;border-radius:999px;background:#fff;text-decoration:none;cursor:pointer}
+            .msg{position:fixed;left:8px;bottom:8px;font:12px system-ui;color:#444;background:#fff;border:1px solid #e5eef8;border-radius:8px;padding:6px 8px}
+            @media print { .bar,.msg{display:none} }
+          </style>
+        </head>
+        <body>
+          <div class="bar">
+            <a class="btn" href="${link}" target="_blank" rel="noopener">Auf Drive öffnen</a>
+            <button class="btn" onclick="window.print()">Nochmal drucken</button>
+            <button class="btn" onclick="window.close()">Fenster schließen</button>
+          </div>
+          <img id="photo" src="${link}" alt="Photo">
+          <div id="fallback" class="msg" style="display:none">
+            Bild lädt nicht? <a href="${link}" target="_blank" rel="noopener">Hier auf Drive öffnen</a>.
+          </div>
+          <script>
+            const img = document.getElementById('photo');
+            let printed = false;
+            function tryPrint(){ if(printed) return; printed = true; setTimeout(()=>window.print(), 250); }
+            img.addEventListener('load', tryPrint);
+            img.addEventListener('error', () => { document.getElementById('fallback').style.display = 'block'; });
+            // Sicherheitsnetz: falls 'load' nicht feuert, nach 1.5s trotzdem versuchen
+            setTimeout(tryPrint, 1500);
+          <\/script>
+        </body>
+        </html>`;
+  
+      w.document.open();
+      w.document.write(printableHTML);
+      w.document.close();
+  
     } catch (e) {
-      // 6) Fehler im Upload -> im Tab anzeigen
+      // 5) Fehler im Upload -> im Tab anzeigen
       try {
         w.document.body.innerHTML = `
           <div class="box"><div class="card">
@@ -592,6 +610,7 @@
       } catch { /* nichts */ }
     }
   });
+  
 
   S.share.addEventListener('click', async () => {
     if (!S.finalImg.src) return;

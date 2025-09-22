@@ -455,6 +455,24 @@
     if (miss.length) { S.onboard.style.display = 'flex'; S.obMissing.textContent = 'Bitte noch erledigen:\n' + miss.join('\n'); }
   }
 
+  function openPrintWindowAndPrint(src) {
+    const html = `
+  <!doctype html>
+  <html><head>
+  <meta charset="utf-8">
+  <style>
+  @page { size: 148mm 100mm; margin: 0; }
+  html,body { width:148mm; height:100mm; margin:0; padding:0; }
+  img { width:148mm; height:100mm; object-fit: cover; display:block; border:0; }
+  </style>
+  </head><body>
+  <img src="${src}" alt="Print">
+  </body></html>`;
+    const w = window.open('', '_blank', 'noopener');
+    w.document.open(); w.document.write(html); w.document.close();
+    w.onload = () => w.print();
+  }
+
   // Events
   S.shoot.addEventListener('click', shoot);
   S.cont.addEventListener('click', () => { showScreen('style'); renderStyles(); });
@@ -466,7 +484,10 @@
     await toOpenAI(p);
   });
 
-  S.print.addEventListener('click', () => window.print());
+  S.print.addEventListener('click', () => {
+    if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
+    openPrintWindowAndPrint(S.finalImg.src);
+  });
 
   S.share.addEventListener('click', async () => {
     if (!S.finalImg.src) return;

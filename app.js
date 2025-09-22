@@ -4,9 +4,9 @@
   // ===== Konfig =====
   // Logo-Sicherheitsabstand (gegen Rand-Abschnitt beim Druck/Scan)
   const safeMarginX = 40;  // px Abstand vom rechten Rand (oben-rechts Platzierung)
-  const safeMarginY = 40;  // px Abstand vom oberen Rand
+  const safeMarginY = 60;  // px Abstand vom oberen Rand
   // Maximale Logo-Größe relativ zur Fläche (wie bisher)
-  const maxLogoRel = 0.18;
+  const maxLogoRel = 0.23;
 
   // ===== Helpers für DOM =====
   const el = (id) => document.getElementById(id);

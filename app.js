@@ -6,7 +6,7 @@
   const safeMarginX = 40;  // px Abstand vom rechten Rand (oben-rechts Platzierung)
   const safeMarginY = 60;  // px Abstand vom oberen Rand
   // Maximale Logo-Größe relativ zur Fläche (wie bisher)
-  const maxLogoRel = 0.23;
+  const maxLogoRel = 0.25;
 
   // ===== Helpers für DOM =====
   const el = (id) => document.getElementById(id);
@@ -260,7 +260,8 @@
       '- Übernehme Pose, Blickrichtung und ungefähre Beleuchtung.',
       '- Kein Text im Bild.',
       '- Ausgabe: 1800×1200 (3:2, 148mm×100mm Print, Querformat), 1 Bild.',
-      '- Hintergrund sauber, stiltypisch.'
+      '- Hintergrund sauber, stiltypisch.',
+      '- Übernehme bei Gruppenbildern alle Personen im Vordergrund'
     ].join('\n');
   }
 

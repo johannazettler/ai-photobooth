@@ -3,8 +3,8 @@
 
   // ===== Konfig =====
   // Logo-Sicherheitsabstand (gegen Rand-Abschnitt beim Druck/Scan)
-  const safeMarginX = 40;  // px Abstand vom rechten Rand (oben-rechts Platzierung)
-  const safeMarginY = 60;  // px Abstand vom oberen Rand
+  const safeMarginX = 50;  // px Abstand vom rechten Rand (oben-rechts Platzierung)
+  const safeMarginY = 50;  // px Abstand vom oberen Rand
   // Maximale Logo-Größe relativ zur Fläche (wie bisher)
   const maxLogoRel = 0.25;
 
@@ -156,31 +156,29 @@
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, S.canvas.width, S.canvas.height);
 
-    // ---- Logo oben rechts (mit Safe-Margin) ----
+    // Logo unten links
     (function drawLogoOnCanvas(ctx, canvasW, canvasH) {
-      const maxW = Math.round(canvasW * maxLogoRel);
-      const maxH = Math.round(canvasH * maxLogoRel);
+      const maxW = Math.round(canvasW * 0.18);
+      const maxH = Math.round(canvasH * 0.18);
 
       ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0); // zurücksetzen, damit das Logo nicht gespiegelt wird
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
 
       if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
         let w = logoImg.naturalWidth || logoImg.width;
         let h = logoImg.naturalHeight || logoImg.height;
         const s = Math.min(maxW / w, maxH / h, 1);
-        w = Math.round(w * s); h = Math.round(h * s);
+        w = Math.round(w * s);
+        h = Math.round(h * s);
 
-        // oben rechts mit Sicherheitsabstand
         ctx.globalAlpha = 1.0;
-        ctx.drawImage(logoImg, canvasW - w - safeMarginX, safeMarginY, w, h);
+        ctx.drawImage(logoImg, logoOffsetX, canvasH - h - logoOffsetY, w, h);
       } else {
-        // Fallback-Text
         ctx.globalAlpha = .9;
         ctx.fillStyle = '#0f172a';
         ctx.font = 'bold 54px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
         const text = 'AI Hub';
-        const m = ctx.measureText(text);
-        ctx.fillText(text, canvasW - m.width - safeMarginX, safeMarginY + 54);
+        ctx.fillText(text, logoOffsetX, canvasH - logoOffsetY);
       }
       ctx.restore();
     })(ctx, S.canvas.width, S.canvas.height);

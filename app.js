@@ -280,17 +280,25 @@
     const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2);
     ctx.drawImage(img, dx, dy, dw, dh);
 
-    // Logo oben rechts mit Sicherheitsabstand
+    // Logo unten links
     if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
-      const maxW = Math.round(W * maxLogoRel), maxH = Math.round(H * maxLogoRel);
-      let w = logoImg.naturalWidth || logoImg.width; let h = logoImg.naturalHeight || logoImg.height;
+      const maxW = Math.round(W * 0.18);
+      const maxH = Math.round(H * 0.18);
+
+      let w = logoImg.naturalWidth || logoImg.width;
+      let h = logoImg.naturalHeight || logoImg.height;
       const s = Math.min(maxW / w, maxH / h, 1);
-      w = Math.round(w * s); h = Math.round(h * s);
-      ctx.drawImage(logoImg, W - w - safeMarginX, safeMarginY, w, h);
+      w = Math.round(w * s);
+      h = Math.round(h * s);
+
+      ctx.drawImage(logoImg, logoOffsetX, H - h - logoOffsetY, w, h);
     } else {
-      ctx.save(); ctx.globalAlpha = .25; ctx.fillStyle = '#0f172a';
+      ctx.save();
+      ctx.globalAlpha = .25;
+      ctx.fillStyle = '#0f172a';
       ctx.font = 'bold 32px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
-      const m = ctx.measureText('AI Hub'); ctx.fillText('AI Hub', W - m.width - safeMarginX, safeMarginY + 32);
+      const text = 'AI Hub';
+      ctx.fillText(text, logoOffsetX, H - logoOffsetY);
       ctx.restore();
     }
     return out.toDataURL('image/jpeg', .95);

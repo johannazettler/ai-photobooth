@@ -1,9 +1,6 @@
 (function () {
   const V = 'AI HUB Photobooth v13.2.0 (2025-08-15)';
   const el = (id) => document.getElementById(id);
-  // Logo-Sicherheitsabstand
-  const safeMarginX = 40; // Abstand in Pixeln vom rechten Rand
-  const safeMarginY = 40; // Abstand in Pixeln vom oberen Rand
   const S = {
     preview: el('screenPreview'), captured: el('screenCaptured'), style: el('screenStyle'), gen: el('screenGenerate'), result: el('screenResult'),
     video: el('video'), canvas: el('canvas'), count: el('count'), flash: el('flash'),
@@ -127,7 +124,7 @@
     if (va > desired) { sh = vh; sw = Math.floor(sh * desired); sx = Math.floor((vw - sw) / 2); sy = 0; }
     else { sw = vw; sh = Math.floor(sw / desired); sx = 0; sy = Math.floor((vh - sh) / 2); }
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(logoImg, canvasW - w - safeMarginX, safeMarginY, w, h);
+    ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, S.canvas.width, S.canvas.height);
 
     // Logo oben rechts
     (function drawLogoOnCanvas(ctx, canvasW, canvasH) {
@@ -236,8 +233,8 @@
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
     let dw = W, dh = Math.round(W / a);
     if (dh > H) { dh = H; dw = Math.round(H * a); }
-    // const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2);
-    ctx.drawImage(logoImg, W - w - safeMarginX, safeMarginY, w, h);
+    const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2);
+    ctx.drawImage(img, dx, dy, dw, dh);
 
     // Logo oben rechts
     if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
@@ -472,32 +469,19 @@
   S.print.addEventListener('click', async () => {
     if (!S.finalImg.src) { alert('Kein Bild vorhanden.'); return; }
   
-    // 1) Tab synchron öffnen (innerhalb des Klick-Events)
-    const w = window.open('', '_blank', 'noopener'); 
-    if (!w) { 
-      alert('Popup blockiert – bitte Popups/Weiterleitungen erlauben.');
-      return; 
-    }
-  
-    // Kurze "Warte"-Seite schreiben (optional)
-    w.document.write(`<!doctype html><meta charset="utf-8">
-    <title>Hochladen…</title>
-    <body style="font-family:system-ui;padding:20px">
-      Hochladen zu Google Drive… bitte warten.
-    </body>`);
-  
     try {
-      // 2) Upload durchführen (asynchron)
-      const link = await uploadShare(S.finalImg.src); // gibt z.B. https://drive.google.com/uc?id=... zurück
+      // Bild in Drive hochladen → gibt Freigabe-Link zurück
+      const link = await uploadShare(S.finalImg.src);
   
-      // 3) Nach dem Upload den bereits geöffneten Tab umleiten
-      w.location.replace(link);
+      // Direkt in neuem Tab öffnen
+      window.open(link, '_blank');
+  
+      // Optional trotzdem lokalen Druck starten:
+      // window.print();
     } catch (e) {
-      // Fehler sichtbar machen, damit der Tab nicht leer bleibt
-      w.document.body.textContent = 'Upload-Fehler: ' + (e?.message || e);
+      alert('Fehler beim Hochladen zu Drive: ' + e.message);
     }
   });
-  
 
   S.share.addEventListener('click', async () => {
     if (!S.finalImg.src) return;

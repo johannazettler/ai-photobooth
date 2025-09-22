@@ -2,11 +2,27 @@
   const V = 'AI HUB Photobooth v13.2.1 (2025-09-22)';
 
   // ===== Konfig =====
-  // Logo-Sicherheitsabstand (gegen Rand-Abschnitt beim Druck/Scan)
-  const safeMarginX = 50;  // px Abstand vom rechten Rand (oben-rechts Platzierung)
-  const safeMarginY = 50;  // px Abstand vom oberen Rand
-  // Maximale Logo-Größe relativ zur Fläche (wie bisher)
-  const maxLogoRel = 0.25;
+  const safeMarginX = 32;   // px Abstand vom linken Rand (Druck-Sicherheitsrand)
+  const safeMarginY = 32;   // px Abstand vom unteren Rand (Druck-Sicherheitsrand)
+  const maxLogoRel  = 0.18; // max. 18% der jeweiligen Kantenlänge
+
+  // Logo-Rechteck: skaliert das Bild proportional und platziert es unten links
+  function computeLogoRect(canvasW, canvasH, imgW, imgH) {
+    // Maximale Logo-Kanten relativ zur Fläche
+    const maxW = Math.round(canvasW * maxLogoRel);
+    const maxH = Math.round(canvasH * maxLogoRel);
+
+    // Skalierung beibehalten, aber niemals größer als Original
+    const s = Math.min(maxW / imgW, maxH / imgH, 1);
+    const w = Math.round(imgW * s);
+    const h = Math.round(imgH * s);
+
+    // Unten links mit Sicherheitsrand
+    const x = safeMarginX;
+    const y = canvasH - safeMarginY - h;
+
+    return { x, y, w, h };
+  }
 
   // ===== Helpers für DOM =====
   const el = (id) => document.getElementById(id);
@@ -30,7 +46,7 @@
   let logoData = localStorage.getItem('pb_logo_data') || null;  // Data-URL
   let logoImg = null;                                           // gecachtes Image
   let stream = null, devices = [], perm = 'prompt';
-  const styles = ['Puppet Style', 'Anime', 'Studio Ghibli', 'Simpsons', 'Ninja Turtles', '90s Aesthetic', 'LEGO Style'];
+  const styles = ['Puppet Style', 'Anime', 'Studio Ghibli', 'Simpsons', 'Ninja Turtles', '90s Aesthetic', 'LEGO Style', 'Black and White 4K', 'Vintage Travel Poster' ];
   let chosen = styles[0];
 
   // Drive state
@@ -130,60 +146,54 @@
     });
   }
 
+
   // ===== Aufnahme / Zeichnen =====
   function draw() {
-    // Falls doch noch nicht bereit: sanfter Bailout statt „leeres“ Bild
-    if (!S.video.videoWidth || !S.video.videoHeight) {
-      console.warn('Video ist noch nicht bereit – zeichne nicht.');
-      return;
-    }
-
+    if (!S.video.videoWidth || !S.video.videoHeight) return;
+  
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    const W = 1800, H = 1200;   // Zielgröße
+    const W = 1800, H = 1200;
     S.canvas.width = Math.floor(W * dpr);
     S.canvas.height = Math.floor(H * dpr);
     const ctx = S.canvas.getContext('2d');
-
-    // Kamera gespiegelt (Selfie)
-    ctx.setTransform(-1, 0, 0, 1, S.canvas.width, 0);
-
-    // Letterboxing „cover“-artig zuschneiden
+  
+    // 1) Videobild "cover" einpassen, Selfie-Spiegelung aktivieren
+    ctx.setTransform(-1, 0, 0, 1, S.canvas.width, 0); // horizontal gespiegelt
     const vw = S.video.videoWidth, vh = S.video.videoHeight;
     const desired = S.canvas.width / S.canvas.height, va = vw / vh;
     let sx, sy, sw, sh;
-    if (va > desired) { sh = vh; sw = Math.floor(sh * desired); sx = Math.floor((vw - sw) / 2); sy = 0; }
-    else { sw = vw; sh = Math.floor(sw / desired); sx = 0; sy = Math.floor((vh - sh) / 2); }
+    if (va > desired) { // &gt; breiter -> seitlich beschneiden
+      sh = vh; sw = Math.floor(sh * desired); sx = Math.floor((vw - sw) / 2); sy = 0;
+    } else {            // &gt; höher -> oben/unten beschneiden
+      sw = vw; sh = Math.floor(sw / desired); sx = 0; sy = Math.floor((vh - sh) / 2);
+    }
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, S.canvas.width, S.canvas.height);
-
-    // Logo unten links
-    (function drawLogoOnCanvas(ctx, canvasW, canvasH) {
-      const maxW = Math.round(canvasW * 0.18);
-      const maxH = Math.round(canvasH * 0.18);
-
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-      if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
-        let w = logoImg.naturalWidth || logoImg.width;
-        let h = logoImg.naturalHeight || logoImg.height;
-        const s = Math.min(maxW / w, maxH / h, 1);
-        w = Math.round(w * s);
-        h = Math.round(h * s);
-
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(logoImg, logoOffsetX, canvasH - h - logoOffsetY, w, h);
-      } else {
-        ctx.globalAlpha = .9;
-        ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 54px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
-        const text = 'AI Hub';
-        ctx.fillText(text, logoOffsetX, canvasH - logoOffsetY);
-      }
-      ctx.restore();
-    })(ctx, S.canvas.width, S.canvas.height);
+  
+    // 2) Logo unten links MIT Sicherheitsrand (Transform zurücksetzen!)
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
+      const { x, y, w, h } = computeLogoRect(
+        S.canvas.width, S.canvas.height, 
+        logoImg.naturalWidth || logoImg.width, 
+        logoImg.naturalHeight || logoImg.height
+      );
+      ctx.globalAlpha = 1.0;
+      ctx.drawImage(logoImg, x, y, w, h);
+    } else {
+      // Fallback: dezenter Text-Platzhalter an exakt gleicher Position
+      const { x, y, w, h } = computeLogoRect(S.canvas.width, S.canvas.height, 600, 200); // fiktive Basis
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 54px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
+      // baseline unten, damit es ähnlich "am Rand" steht
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('AI Hub', x, y + h);
+    }
+    ctx.restore();
   }
-
+  
   async function shutter() {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = new AC(); const out = ac.createGain(); out.gain.value = .8; out.connect(ac.destination);
@@ -230,7 +240,7 @@
 
   // ===== Styles, Prompt, Compose =====
   function renderStyles() {
-    const emojis = ['🧸', '🌸', '🌀', '💛', '🐢', '📼', '🧱'];
+    const emojis = ['🧸', '🌸', '🌀', '💛', '🐢', '📼', '🧱', '🏁', '🕹️'];
     S.styleGrid.innerHTML = '';
     styles.forEach((s, i) => {
       const b = document.createElement('button');
@@ -266,43 +276,50 @@
   async function pngBlob() { return new Promise(res => S.canvas.toBlob(b => res(b), 'image/png')); }
 
   async function compose(src) {
-    // Ergebnisbild 1800x1200 mit Logo oben rechts + Safe-Margin
-    const img = await new Promise((r, j) => { const im = new Image(); im.onload = () => r(im); im.onerror = j; im.src = src; });
+    const img = await new Promise((r, j) => { 
+      const im = new Image(); 
+      im.onload = () => r(im); 
+      im.onerror = j; 
+      im.src = src; 
+    });
+  
     const W = 1800, H = 1200;
     const out = document.createElement('canvas'); out.width = W; out.height = H;
     const ctx = out.getContext('2d');
-
-    // Bild mittig reinfitten (contain)
+  
+    // Weißer Hintergrund
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, H);
+  
+    // Eingangsbild "contain" mittig
     const a = img.width / img.height, desired = W / H;
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
     let dw = W, dh = Math.round(W / a);
     if (dh > H) { dh = H; dw = Math.round(H * a); }
     const dx = Math.floor((W - dw) / 2), dy = Math.floor((H - dh) / 2);
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, dx, dy, dw, dh);
-
-    // Logo unten links
+  
+    // Logo unten links mit Sicherheitsrand
     if (logoImg && (logoImg.complete || logoImg.naturalWidth)) {
-      const maxW = Math.round(W * 0.18);
-      const maxH = Math.round(H * 0.18);
-
-      let w = logoImg.naturalWidth || logoImg.width;
-      let h = logoImg.naturalHeight || logoImg.height;
-      const s = Math.min(maxW / w, maxH / h, 1);
-      w = Math.round(w * s);
-      h = Math.round(h * s);
-
-      ctx.drawImage(logoImg, logoOffsetX, H - h - logoOffsetY, w, h);
+      const { x, y, w, h } = computeLogoRect(
+        W, H, 
+        logoImg.naturalWidth || logoImg.width, 
+        logoImg.naturalHeight || logoImg.height
+      );
+      ctx.drawImage(logoImg, x, y, w, h);
     } else {
       ctx.save();
-      ctx.globalAlpha = .25;
+      const { x, y, w, h } = computeLogoRect(W, H, 600, 200);
+      ctx.globalAlpha = 0.25;
       ctx.fillStyle = '#0f172a';
       ctx.font = 'bold 32px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
-      const text = 'AI Hub';
-      ctx.fillText(text, logoOffsetX, H - logoOffsetY);
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('AI Hub', x, y + h);
       ctx.restore();
     }
-    return out.toDataURL('image/jpeg', .95);
-  }
+  
+    return out.toDataURL('image/jpeg', 0.95);
+  }  
 
   async function toOpenAI(p) {
     const key = sessionStorage.getItem('openai_api_key');

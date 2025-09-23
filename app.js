@@ -2,7 +2,7 @@
   const V = 'AI HUB Photobooth v13.2.1 (2025-09-22)';
 
   // ===== Konfig =====
-  const safeMarginX = 32;   // px Abstand vom linken Rand (Druck-Sicherheitsrand)
+  const safeMarginX = 45;   // px Abstand vom linken Rand (Druck-Sicherheitsrand)
   const safeMarginY = 32;   // px Abstand vom unteren Rand (Druck-Sicherheitsrand)
   const maxLogoRel  = 0.18; // max. 18% der jeweiligen Kantenlänge
 

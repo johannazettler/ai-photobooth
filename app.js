@@ -3,18 +3,24 @@
 
   // ===== Konfig =====
   const safeMarginX = 150;   // px Abstand vom linken Rand (Druck-Sicherheitsrand)
-  const safeMarginY = 32;    // px Abstand vom unteren Rand (Druck-Sicherheitsrand)
-  const maxLogoRel  = 0.18;  // max. 18% der jeweiligen Kantenlänge
+  const safeMarginY = 32;   // px Abstand vom unteren Rand (Druck-Sicherheitsrand)
+  const maxLogoRel  = 0.18; // max. 18% der jeweiligen Kantenlänge
 
   // Logo-Rechteck: skaliert das Bild proportional und platziert es unten links
   function computeLogoRect(canvasW, canvasH, imgW, imgH) {
+    // Maximale Logo-Kanten relativ zur Fläche
     const maxW = Math.round(canvasW * maxLogoRel);
     const maxH = Math.round(canvasH * maxLogoRel);
+
+    // Skalierung beibehalten, aber niemals größer als Original
     const s = Math.min(maxW / imgW, maxH / imgH, 1);
     const w = Math.round(imgW * s);
     const h = Math.round(imgH * s);
+
+    // Position: unten links, mit Sicherheitsabstand
     const x = safeMarginX;
     const y = canvasH - safeMarginY - h;
+
     return { x, y, w, h };
   }
 
@@ -45,7 +51,9 @@
   let stream = null, devices = [], perm = 'prompt';
   const styles = ['Puppet Style', 'Anime', 'Studio Ghibli', 'Simpsons', 'Ninja Turtles', '90s Aesthetic', 'LEGO Style', 'Black and White 4K', 'Vintage Travel Poster' ];
   let chosen = styles[0];
-  let capturedData = null;  // gespeichertes Foto
+
+  // NEU: gespeichertes Foto (Data-URL) für Restyle-Loop
+  let capturedData = null;
 
   // Drive state
   const drive = { clientId: '', token: null, tokenClient: null, authorized: (localStorage.getItem('drive_authorized') === '1') };
@@ -134,47 +142,43 @@
   // ===== Aufnahme / Zeichnen =====
   function draw() {
     if (!S.video.videoWidth || !S.video.videoHeight) return;
+  
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    const W = S.video.videoWidth;
-    const H = S.video.videoHeight;
-    const cw = 1800, ch = 1200; // 3:2
-    S.canvas.width = cw * dpr; S.canvas.height = ch * dpr;
+    const W = 1800, H = 1200;
+    S.canvas.width = Math.floor(W * dpr);
+    S.canvas.height = Math.floor(H * dpr);
     const ctx = S.canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-
-    // Video proportional in 3:2 einpassen (cover)
-    const rVid = W / H, rCan = cw / ch;
-    let sx = 0, sy = 0, sw = W, sh = H;
-    if (rVid > rCan) { // Video zu breit
-      const targetW = H * rCan;
-      sx = (W - targetW) / 2;
-      sw = targetW;
-    } else { // Video zu hoch
-      const targetH = W / rCan;
-      sy = (H - targetH) / 2;
-      sh = targetH;
+  
+    // 1) Videobild "cover" einpassen – KEINE Spiegelung für das Ergebnisbild
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // keine Spiegelung (Ergebnisbild bleibt ungespiegelt)
+    const vw = S.video.videoWidth, vh = S.video.videoHeight;
+    const desired = S.canvas.width / S.canvas.height, va = vw / vh;
+    let sx, sy, sw, sh;
+    if (va > desired) { // > breiter -> seitlich beschneiden
+      sh = vh; sw = Math.floor(sh * desired); sx = Math.floor((vw - sw) / 2); sy = 0;
+    } else {            // > höher -> oben/unten beschneiden
+      sw = vw; sh = Math.floor(sw / desired); sx = 0; sy = Math.floor((vh - sh) / 2);
     }
-    ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, cw, ch);
-
-    // Wasserzeichen / Logo
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(S.video, sx, sy, sw, sh, 0, 0, S.canvas.width, S.canvas.height);
+  
+    // 2) Logo / Wasserzeichen
+    ctx.save();
     if (logoImg) {
-      const { x, y, w, h } = computeLogoRect(cw, ch, logoImg.naturalWidth || logoImg.width, logoImg.naturalHeight || logoImg.height);
-      ctx.save();
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
+      const { x, y, w, h } = computeLogoRect(S.canvas.width, S.canvas.height, (logoImg.naturalWidth || logoImg.width), (logoImg.naturalHeight || logoImg.height));
+      ctx.globalAlpha = 1.0;
       ctx.drawImage(logoImg, x, y, w, h);
-      ctx.restore();
     } else {
-      // Fallback-Label
-      const ctx2 = ctx;
-      ctx2.save();
-      ctx2.globalAlpha = .65;
-      ctx2.fillStyle = '#1f2937';
-      ctx2.font = 'bold 28px system-ui,Segoe UI,Roboto';
-      const x = safeMarginX, y = ch - safeMarginY - 22;
-      ctx2.fillText('AI Hub', x, y);
-      ctx2.restore();
+      // Fallback: dezenter Text-Platzhalter
+      const { x, y, w, h } = computeLogoRect(S.canvas.width, S.canvas.height, 600, 200); // fiktive Basis
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 54px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText('AI Hub', x, y + h);
     }
+    ctx.restore();
   }
 
   async function shutter() {
@@ -199,14 +203,15 @@
       if (!asked) { sessionStorage.setItem('pb_perm_asked', '1'); const ok = await startCam(); if (!ok) return; }
       else if (sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted') { const ok = await startCam(); if (!ok) return; }
     }
-    const ready = await waitReady(); if (!ready) { alert('Kamera noch nicht bereit.'); return; }
+    const ready = await waitReady(); if (!ready) { alert('Kamera noch nicht bereit. Bitte kurz warten und erneut versuchen.'); return; }
+
+    // Countdown & Foto
+    S.count.style.display = 'block';
+    for (let i = 5; i >= 1; i--) { S.count.textContent = String(i); await sleep(1000); }
+    S.count.style.display = 'none';
 
     flash(); await shutter(); draw();
-
-    // Aufnahme für spätere Restyles einfrieren
-    try { capturedData = S.canvas.toDataURL('image/png'); }
-    catch { capturedData = null; }
-
+    try { capturedData = S.canvas.toDataURL('image/png'); } catch { capturedData = null; } // Aufnahme einfrieren (Data-URL)
     showScreen('captured');
   }
 
@@ -215,18 +220,20 @@
     showScreen('preview');
   }
 
-  // ===== Styles =====
+  // ===== Styles, Prompt, Compose =====
   function renderStyles() {
-    const html = styles.map(s => {
-      const sel = (s === chosen) ? 'style="outline:2px solid var(--primary)"' : '';
-      return `<button class="style" data-style="${s}" ${sel}>${s}</button>`;
-    }).join('');
-    S.styleGrid.innerHTML = html;
-    S.styleGrid.querySelectorAll('.style').forEach(btn => {
-      btn.addEventListener('click', () => {
-        chosen = btn.getAttribute('data-style');
+    const emojis = ['🧸', '🌸', '🌀', '💛', '🐢', '📼', '🧱', '🏁', '🕹️'];
+    S.styleGrid.innerHTML = '';
+    styles.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.className = 'tile'; b.type = 'button';
+      b.setAttribute('aria-pressed', s === chosen ? 'true' : 'false');
+      b.innerHTML = `<div class="thumb">${emojis[i % emojis.length]}</div><div class="label">${s}</div>`;
+      b.addEventListener('click', () => {
+        chosen = s; S.custom.value = '';
         renderStyles();
       });
+      S.styleGrid.appendChild(b);
     });
   }
 
@@ -242,19 +249,21 @@
       '- Ausgabe: 1800×1200 (3:2, 148mm×100mm Print, Querformat), 1 Bild.',
       '- Hintergrund sauber, stiltypisch.',
       '- Übernehme bei Gruppenbildern alle Personen im Vordergrund'
-    ].filter(Boolean).join('\n');
+    ].join('\n');
   }
 
   async function pngBlob() {
     if (capturedData) {
+      // Data-URL -> Blob
       const r = await fetch(capturedData);
       return await r.blob();
     }
-    return new Promise(res => S.canvas.toBlob(b => res(b), 'image/png'));
-  }
+    return new Promise(res => S.canvas.toBlob(b => res(b), 'image/png')); }
 
   async function compose(src) {
-    const img = await new Promise((r, j) => { const im = new Image(); im.onload = () => r(im); im.onerror = j; im.src = src; });
+    const img = await new Promise((r, j) => { 
+      const im = new Image(); im.onload = () => r(im); im.onerror = j; im.src = src; 
+    });
     const W = 1800, H = 1200;
     const out = document.createElement('canvas'); out.width = W; out.height = H;
     const ctx = out.getContext('2d');
@@ -273,7 +282,7 @@
       ctx.drawImage(logoImg, x, y, w, h);
     } else {
       ctx.save();
-      ctx.globalAlpha = .65; ctx.fillStyle = '#1f2937'; ctx.font = 'bold 28px system-ui,Segoe UI,Roboto';
+      ctx.globalAlpha = .9; ctx.fillStyle = '#0f172a'; ctx.font = 'bold 28px system-ui,Segoe UI,Roboto';
       const x = safeMarginX, y = H - safeMarginY - 22;
       ctx.fillText('AI Hub', x, y);
       ctx.restore();
@@ -468,7 +477,6 @@
     try {
       const link = await uploadShare(S.finalImg.src);
 
-      // Versuche, direkt auf die URL zu navigieren
       try {
         w.location.replace(link);
       } catch {
@@ -478,7 +486,6 @@
         w.document.getElementById('fallback').style.display = 'block';
       }
 
-      // Zusätzlich QR anzeigen
       S.qrBox.innerHTML = '';
       const img = new Image();
       img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' + encodeURIComponent(link);
@@ -546,7 +553,7 @@
   S.cont.addEventListener('click', (e) => {
     e?.preventDefault?.();
     if (S.reuseNote) S.reuseNote.style.display = 'none';
-    showScreen('style');
+    showScreen('style');   // direkt zur Stil-Auswahl
     try {
       if (S.styleGrid) renderStyles();
     } catch (err) {
@@ -555,7 +562,7 @@
   });
   S.retry.addEventListener('click', retry);
 
-  // WICHTIG: Restyle-Button (auf Ergebnis-Screen)
+  // Restyle-Button (auf Ergebnis-Screen)
   S.restyle?.addEventListener('click', () => {
     if (S.reuseNote) S.reuseNote.style.display = 'block'; // Hinweis zeigen
     showScreen('style');

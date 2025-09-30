@@ -14,12 +14,8 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header>
-    <h1>AI HUB Photobooth</h1>
-  </header>
-
   <section id="screenPreview" class="screen active">
-    <div class="card stage">
+    <div class="stage">
       <video id="video" playsinline autoplay muted></video>
       <div class="overlay">
         <div id="count" class="count">5</div>
@@ -48,7 +44,7 @@
         <textarea id="customStyle" class="textarea" placeholder="z.B. Aquarell, Low-Poly, Cyberpunk Neon…"></textarea>
       </div>
       <div class="bigbar" style="padding-bottom:0">
-        <button id="startGenBtn" class="primary">🧠 KI‑Generierung starten</button>
+        <button id="startGenBtn" class="primary">🧠 KI-Generierung starten</button>
       </div>
     </div>
   </section>
@@ -104,8 +100,8 @@
       <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
       <div class="row">
         <div>
-          <strong>Google Drive</strong>
-          <div class="help">Verbinden (OAuth wird nicht automatisch bei Reload geöffnet)</div>
+          <div class="help">Google Drive</div>
+          <div class="help">Legt automatisch einen Ordner an & erzeugt QR-Link.</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button id="driveConnect" class="secondary">Mit Google verbinden</button>
@@ -120,7 +116,7 @@
         <label for="logoFile">Logo (PNG/JPG/SVG)</label>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <input id="logoFile" type="file" accept="image/png,image/svg+xml,image/jpeg" class="input" />
-          <img id="logoPreview" alt="Logo-Vorschau" style="height:36px;max-width:160px;object-fit:contain;border:1px solid var(--border);border-radius:6px;padding:3px;background:#fff" />
+          <img id="logoPreview" alt="Logo-Vorschau" style="height:36px;max-width:220px;border:1px solid var(--border);border-radius:6px;padding:3px;background:#fff" />
           <button id="logoClear" class="secondary" type="button">Entfernen</button>
         </div>
       </div>
@@ -134,10 +130,12 @@
       </header>
       <div class="steps">
         <div class="step">
-          <h3>1) Kamera wählen</h3><select id="obCamera" class="select"></select><button id="obGrantCam" class="secondary">Zugriff erlauben & Vorschau testen</button>
+          <h3>1) Kamera wählen</h3><select id="obCamera" class="select"></select>
+          <button id="obGrantCam" class="secondary">Zugriff erlauben & Vorschau testen</button>
         </div>
         <div class="step">
-          <h3>2) OpenAI Key</h3><input id="obApiKey" class="input" type="password" placeholder="sk-…">
+          <h3>2) OpenAI Key setzen</h3>
+          <input id="obApiKey" class="input" type="password" placeholder="sk-…" />
         </div>
         <div class="step">
           <h3>3) Drive verbinden</h3>

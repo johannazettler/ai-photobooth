@@ -52,7 +52,7 @@
   const styles = ['Puppet Style', 'Anime', 'Studio Ghibli', 'Simpsons', 'Ninja Turtles', '90s Aesthetic', 'LEGO Style', 'Black and White 4K', 'Vintage Travel Poster' ];
   let chosen = styles[0];
 
-  // NEU: gespeichertes Foto (Data-URL) für Restyle-Loop
+  // gespeichertes Foto (Data-URL) für Restyle-Loop
   let capturedData = null;
 
   // Drive state
@@ -150,7 +150,7 @@
     const ctx = S.canvas.getContext('2d');
   
     // 1) Videobild "cover" einpassen – Selfie-Spiegelung
-    ctx.setTransform(-1, 0, 0, 1, 0, 0); // horizonatl gespiegelt
+    ctx.setTransform(-1, 0, 0, 1, S.canvas.width, 0); // horizonatl gespiegelt
     const vw = S.video.videoWidth, vh = S.video.videoHeight;
     const desired = S.canvas.width / S.canvas.height, va = vw / vh;
     let sx, sy, sw, sh;

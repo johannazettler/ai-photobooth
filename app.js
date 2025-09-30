@@ -444,7 +444,7 @@
     });
 
     // 3) Direktlink
-    return `https://drive.google.com/uc?id=${file.id}`;
+    return `https://drive.google.com/uc?id=${file.id}&authuser=0`;
   }
 
   async function openShareWindow() {

@@ -505,3 +505,75 @@ button:active {
     display: block;
   }
 }
+
+/* === Stil-Auswahl: responsive, passt immer auf eine Seite === */
+
+/* Grid der Stil-Kacheln (du nutzt bereits .grid dafür) */
+.style-wrap .grid {
+  /* automatisch so viele Spalten wie reinpassen;
+     Kachelbreite schrumpft adaptiv mit clamp() */
+  display: grid;
+  gap: clamp(6px, 1.2vw, 12px);
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(clamp(88px, 10vw, 140px), 1fr)
+  );
+}
+
+/* Kachel-Größen kompakter und skalierend */
+.style-wrap .grid .tile {
+  aspect-ratio: 1 / 1;
+  padding: clamp(6px, 1vw, 12px);
+  border-radius: clamp(10px, 1.2vw, 16px);
+}
+
+.style-wrap .grid .tile .thumb {
+  font-size: clamp(18px, 5.5vw, 36px);
+}
+
+.style-wrap .grid .tile .label {
+  font-size: clamp(10px, 2.2vw, 14px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bereich für Eingabefeld + Button nebeneinander, flexibel */
+.style-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+#customStyle {
+  flex: 1 1 280px;   /* wächst und kann umbrechen */
+  min-width: 180px;
+}
+
+#startGenBtn {
+  flex: 0 0 auto;    /* bleibt kompakt rechts */
+}
+
+/* Bei niedriger Bildschirmhöhe noch etwas kompakter werden */
+@media (max-height: 760px) {
+  .style-wrap .grid {
+    gap: 6px;
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(clamp(72px, 11vw, 120px), 1fr)
+    );
+  }
+  .style-wrap .grid .tile { padding: 6px; border-radius: 10px; }
+  .style-wrap .grid .tile .thumb { font-size: clamp(16px, 5vw, 28px); }
+  .style-wrap .grid .tile .label { font-size: clamp(9px, 2vw, 12px); }
+}
+
+/* Optionaler Ultra-Kompaktmodus über Klasse .compact am <html> */
+:root.compact .style-wrap .grid {
+  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+  gap: 6px;
+}
+:root.compact .style-wrap .grid .tile { padding: 5px; }
+:root.compact .style-wrap .grid .tile .thumb { font-size: 20px; }
+:root.compact .style-wrap .grid .tile .label { font-size: 10px; }

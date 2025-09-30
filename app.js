@@ -574,7 +574,7 @@
   S.startGen.addEventListener('click', async () => {
     showScreen('gen');
     const p = promptText(); S.prompt.value = p;
-    S.resultBox.innerHTML = '<div class="progress"><span class="hourglass">⏳</span> Die Bilderstellung läuft… das kann ca. 1 Minute dauern.</div>';
+    S.resultBox.innerHTML = '<div class="progress"><span class="hourglass">⏳</span> Die Bilderstellung läuft… das kann ca. 1-2 Minute dauern.</div>';
     await toOpenAI(p);
   });
 

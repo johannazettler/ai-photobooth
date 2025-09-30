@@ -43,7 +43,7 @@
   let logoData = localStorage.getItem('pb_logo_data') || null;  // Data-URL
   let logoImg = null;                                           // gecachtes Image
   let stream = null, devices = [], perm = 'prompt';
-  const styles = ['Puppet Style', 'Anime', 'Studio Ghibli', 'Simpsons', 'Ninja Turtles', '90s Aesthetic', 'LEGO Style', 'Black and White 4K', 'Vintage Travel Poster' ];
+  const styles = ['Puppet Style', 'Anime', 'Studio Ghibli', 'Simpsons', 'Ninja Turtles', '90s Aesthetic', 'LEGO Style', 'B&W 4K', '90s Travel Poster' ];
   let chosen = styles[0];
 
   // NEU: gespeichertes Foto (Data-URL) für Restyle-Loop

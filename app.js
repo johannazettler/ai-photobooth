@@ -165,6 +165,7 @@
   
     // 2) Logo / Wasserzeichen
     ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (logoImg) {
       const { x, y, w, h } = computeLogoRect(S.canvas.width, S.canvas.height, (logoImg.naturalWidth || logoImg.width), (logoImg.naturalHeight || logoImg.height));
       ctx.globalAlpha = 1.0;

@@ -41,6 +41,7 @@
   <section id="screenStyle" class="screen">
     <div class="style-wrap">
       <h2 style="margin:0;font-size:1.2rem">🎨 Foto Stil wählen</h2>
+      <div id="reuseNote" class="help" style="display:none">↻ Gleiches Foto wird wiederverwendet. Wähle einfach einen neuen Stil.</div>
       <div class="grid" id="styleGrid"></div>
       <div>
         <label for="customStyle" style="display:block;margin-bottom:6px;color:var(--muted)">Anderen Stil beschreiben:</label>
@@ -80,6 +81,7 @@
       <button id="shareBtn" class="secondary" style="outline:3px solid rgba(16,185,129,.35)">🌿 Bild teilen (Drive + QR)</button>
       <!-- Gmail vorerst deaktiviert
       <button id="gmailBtn" class="secondary">✉️ Per Gmail senden</button> -->
+      <button id="restyleBtn" class="secondary">✨ Mit gleichem Foto neu stylen</button>
       <button id="restartBigBtn" class="secondary">🔄 Neu starten</button>
     </div>
   </section>

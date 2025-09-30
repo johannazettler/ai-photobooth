@@ -32,6 +32,8 @@
     shoot: el('shootBtn'), cont: el('continueBtn'), retry: el('retryBtn'),
     styleGrid: el('styleGrid'), custom: el('customStyle'), startGen: el('startGenBtn'), prompt: el('promptOut'), resultBox: el('resultBox'),
     finalImg: el('finalImg'), print: el('printBtn'), share: el('shareBtn'), /* gmail: el('gmailBtn'), */ restartBig: el('restartBigBtn'),
+    restyle: el('restyleBtn'),
+    reuseNote: el('reuseNote'),
     restartFab: el('restartFab'), settingsFab: el('settingsFab'), settings: el('settings'), closeSettings: el('closeSettings'),
     cameraSel: el('cameraSel'), apiKey: el('apiKey'), version: el('versionText'),
     onboard: el('onboard'), obCamera: el('obCamera'), obGrantCam: el('obGrantCam'), obApi: el('obApiKey'), obDriveConn: el('obDriveConnect'), obDone: el('obDone'), obMissing: el('obMissing'), obDriveStatus: el('obDriveStatus'),
@@ -48,6 +50,7 @@
   let stream = null, devices = [], perm = 'prompt';
   const styles = ['Puppet Style', 'Anime', 'Studio Ghibli', 'Simpsons', 'Ninja Turtles', '90s Aesthetic', 'LEGO Style', 'Black and White 4K', 'Vintage Travel Poster' ];
   let chosen = styles[0];
+  let capturedData = null;  // gespeichertes Foto
 
   // Drive state
   const drive = { clientId: '', token: null, tokenClient: null, authorized: (localStorage.getItem('drive_authorized') === '1') };
@@ -228,10 +231,12 @@
     S.count.style.display = 'none';
 
     flash(); await shutter(); draw();
+    try { capturedData = S.canvas.toDataURL('image/png'); } catch { capturedData = null; } // Aufnahme einfrieren (Data-URL)
     showScreen('captured');
   }
 
   async function retry() {
+    capturedData = null; // Reset des eingefrorenen Fotos
     showScreen('preview');
     if ((sessionStorage.getItem('pb_perm_granted') === '1' || perm === 'granted') && !active()) {
       const ok = await startCam(); if (ok) await waitReady();
@@ -273,7 +278,13 @@
     ].join('\n');
   }
 
-  async function pngBlob() { return new Promise(res => S.canvas.toBlob(b => res(b), 'image/png')); }
+  async function pngBlob() {
+    if (capturedData) {
+      // Data-URL -> Blob
+      const r = await fetch(capturedData);
+      return await r.blob();
+    }
+    return new Promise(res => S.canvas.toBlob(b => res(b), 'image/png')); }
 
   async function compose(src) {
     const img = await new Promise((r, j) => { 
@@ -537,7 +548,8 @@
   S.cont.addEventListener('click', (e) => {
     // Falls der Button in einem <form> steckt: Submit verhindern
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
-  
+    if (S.reuseNote) S.reuseNote.style.display = 'none'; // Restyle Hinweis ausblenden, wenn neues Bild gemacht wird
+
     // Screen sofort umschalten
     showScreen('style');
   
@@ -549,6 +561,13 @@
     }
   });
   S.retry.addEventListener('click', retry);
+
+  S.restyle?.addEventListener('click', () => {
+    // Hinweis einblenden: gleiches Foto bleibt erhalten
+    if (S.reuseNote) S.reuseNote.style.display = 'block';
+    showScreen('style');
+    try { if (S.styleGrid) renderStyles(); } catch {}
+  });
 
   S.startGen.addEventListener('click', async () => {
     showScreen('gen');
@@ -689,6 +708,7 @@ S.print.addEventListener('click', async () => {
     const miss = missingList();
     if (miss.length) { S.obMissing.textContent = 'Bitte noch erledigen:\n' + miss.join('\n'); return; }
     S.onboard.style.display = 'none';
+
   });
 
   // Permissions init
@@ -718,6 +738,7 @@ S.print.addEventListener('click', async () => {
 
     setDriveStatus();
     openOnboardingIfNeeded();
+    if (S.reuseNote) S.reuseNote.style.display = 'none'; 
 
     if (navigator.mediaDevices?.addEventListener) {
       navigator.mediaDevices.addEventListener('devicechange', listCams);

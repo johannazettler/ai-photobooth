@@ -149,8 +149,8 @@
     S.canvas.height = Math.floor(H * dpr);
     const ctx = S.canvas.getContext('2d');
   
-    // 1) Videobild "cover" einpassen – KEINE Spiegelung für das Ergebnisbild
-    // ctx.setTransform(1, 0, 0, 1, 0, 0); // keine Spiegelung (Ergebnisbild bleibt ungespiegelt)
+    // 1) Videobild "cover" einpassen – Selfie-Spiegelung
+    ctx.setTransform(-1, 0, 0, 1, S.canvas,width, 0); // horizonatl gespiegelt
     const vw = S.video.videoWidth, vh = S.video.videoHeight;
     const desired = S.canvas.width / S.canvas.height, va = vw / vh;
     let sx, sy, sw, sh;
